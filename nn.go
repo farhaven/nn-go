@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"sort"
 )
 
 type Node interface {
@@ -57,9 +58,10 @@ func (e Edge) String() string {
 }
 
 type Network struct {
-	edges   []Edge
-	outputs []Node
-	inputs  []Node
+	edges      []Edge
+	outputs    []Node
+	inputs     []Node
+	totalError float64
 }
 
 func NewNetwork() Network {
@@ -220,18 +222,19 @@ func (n *Network) trainingError(sample Sample, edgeWeight float64) (float64, err
 }
 
 /* totalError returns the sum of the total error for all training examples */
-func (n *Network) totalError(samples []Sample, edgeWeight float64) (float64, error) {
+func (n *Network) updateTotalError(samples []Sample, edgeWeight float64) error {
 	sum := float64(0)
 
 	for _, s := range samples {
 		te, err := n.trainingError(s, edgeWeight)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		sum += te
 	}
 
-	return sum, nil
+	n.totalError = sum
+	return nil
 }
 
 func main() {
@@ -242,7 +245,7 @@ func main() {
 		Sample{[]float64{1, 1}, []float64{-1}},
 	}
 
-	networks := []Network{}
+	networks := []*Network{}
 	for idx := 0; idx < 10; idx++ {
 		net := NewNetwork()
 		if rand.Intn(2) == 0 {
@@ -250,14 +253,21 @@ func main() {
 		} else {
 			net.splitRandomEdge()
 		}
-		networks = append(networks, net)
+		networks = append(networks, &net)
 	}
 
 	for _, net := range networks {
-		te, err := net.totalError(samples, 1.0)
+		err := net.updateTotalError(samples, 1.0)
 		if err != nil {
 			log.Fatalln(`can't get total error:`, err)
 		}
-		log.Println(`total error:`, te)
+	}
+
+	sort.Slice(networks, func(i, j int) bool {
+		return networks[i].totalError < networks[j].totalError
+	})
+
+	for idx, net := range networks {
+		log.Println(`error for`, idx, net.totalError)
 	}
 }
