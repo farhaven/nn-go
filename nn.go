@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
 	"math"
+	"math/rand"
 )
 
 type Node interface {
@@ -142,7 +142,7 @@ func (n *Network) addRandomEdge() {
 	/* Build new edge */
 	newEdge := Edge{
 		from: fromNode,
-		to: toNode,
+		to:   toNode,
 	}
 
 	n.edges = append(n.edges, newEdge)
@@ -164,11 +164,11 @@ func (n *Network) splitRandomEdge() {
 	/* Create new edges between from and to, going over newNode */
 	newEdge1 := Edge{
 		from: splitEdge.from,
-		to: &newNode,
+		to:   &newNode,
 	}
 	newEdge2 := Edge{
 		from: &newNode,
-		to: splitEdge.to,
+		to:   splitEdge.to,
 	}
 
 	/* Remove splitEdge.from from splitEdge.to's input node list and add new split Node */
@@ -195,7 +195,7 @@ func (n *Network) splitRandomEdge() {
 }
 
 type Sample struct {
-	inputs []float64
+	inputs  []float64
 	targets []float64
 }
 
@@ -213,7 +213,7 @@ func (n *Network) trainingError(sample Sample, edgeWeight float64) (float64, err
 	sum := float64(0)
 
 	for idx, output := range outputs {
-		sum += math.Pow(output - sample.targets[idx], 2)
+		sum += math.Pow(output-sample.targets[idx], 2)
 	}
 
 	return sum, nil
