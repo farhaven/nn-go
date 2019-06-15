@@ -1,3 +1,5 @@
+/* This package implements a WANN (weight agnostig neural network) */
+
 package main
 
 import (
