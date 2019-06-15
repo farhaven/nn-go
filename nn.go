@@ -13,6 +13,7 @@ import (
 
 type Node interface {
 	Value(edgeWeight float64) float64
+	Clone() Node
 }
 
 type ConstantNode struct {
@@ -26,6 +27,10 @@ func (c ConstantNode) String() string {
 func (c *ConstantNode) Value(edgeWeight float64) float64 {
 	/* Edge weight is ignored here because we don't pass another edge to get this nodes' value */
 	return c.value
+}
+
+func (c *ConstantNode) Clone() Node {
+	return &ConstantNode{c.value}
 }
 
 type TanhNode struct {
@@ -46,6 +51,13 @@ func (t *TanhNode) Value(edgeWeight float64) float64 {
 
 	t.value = math.Tanh(sum)
 	return t.value
+}
+
+func (t *TanhNode) Clone() Node {
+	return &TanhNode{
+		inputs: []Node{},
+		value:  t.value,
+	}
 }
 
 type Edge struct {
@@ -83,6 +95,49 @@ func NewNetwork() Network {
 
 func (n Network) String() string {
 	return fmt.Sprintf("N{\n\te{%v},\n\ti{%v},\n\to{%v}}", n.edges, n.inputs, n.outputs)
+}
+
+func (n *Network) Clone() Network {
+	/* Create clones of all nodes, then reconstruct edges and input mappings */
+	clones := make(map[Node]Node)
+	for _, edge := range n.edges {
+		clones[edge.from] = edge.from.Clone()
+		clones[edge.to] = edge.to.Clone()
+	}
+
+	/* Rebuild edges and input mappings */
+	newEdges := []Edge{}
+	for _, edge := range n.edges {
+		e := Edge{
+			from: clones[edge.from],
+			to:   clones[edge.to],
+		}
+		newEdges = append(newEdges, e)
+
+		/* Rebuild input nodes if the edge.to is a TanhNode */
+		if th, ok := edge.to.(*TanhNode); ok {
+			clone := clones[edge.to].(*TanhNode)
+			for _, input := range th.inputs {
+				clone.inputs = append(clone.inputs, clones[input])
+			}
+		}
+	}
+
+	/* Gather new input and output nodes */
+	newInputs := []Node{}
+	for _, input := range n.inputs {
+		newInputs = append(newInputs, clones[input])
+	}
+	newOutputs := []Node{}
+	for _, output := range n.outputs {
+		newOutputs = append(newOutputs, clones[output])
+	}
+
+	return Network{
+		edges:   newEdges,
+		inputs:  newInputs,
+		outputs: newOutputs,
+	}
 }
 
 func (n *Network) feed(input []float64, edgeWeight float64) ([]float64, error) {
@@ -237,6 +292,8 @@ func (n *Network) updateTotalError(samples []Sample, edgeWeight float64) error {
 	return nil
 }
 
+const numEpochs = 6
+
 func main() {
 	samples := []Sample{
 		Sample{[]float64{-1, -1}, []float64{-1}},
@@ -256,18 +313,45 @@ func main() {
 		networks = append(networks, &net)
 	}
 
-	for _, net := range networks {
-		err := net.updateTotalError(samples, 1.0)
-		if err != nil {
-			log.Fatalln(`can't get total error:`, err)
+	for epoch := 0; epoch < numEpochs; epoch++ {
+		for _, net := range networks {
+			err := net.updateTotalError(samples, 1.0)
+			if err != nil {
+				log.Fatalln(`can't get total error:`, err)
+			}
 		}
+
+		sort.Slice(networks, func(i, j int) bool {
+			return networks[i].totalError < networks[j].totalError
+		})
+
+		/* Cut off lower half of population */
+		networks = networks[:len(networks)/2]
+
+		/* Clone and mutate upper half of population */
+		clones := []*Network{}
+		for _, net := range networks {
+			clone := net.Clone()
+			if rand.Intn(2) == 0 {
+				net.addRandomEdge()
+			} else {
+				net.splitRandomEdge()
+			}
+			clones = append(clones, &clone)
+		}
+		networks = append(networks, clones...)
 	}
 
+	log.Println(`errors after`, numEpochs, `epochs:`)
+	for _, net := range networks {
+		if err := net.updateTotalError(samples, 1.0); err != nil {
+			log.Fatalln(`can't update total error`, err)
+		}
+	}
 	sort.Slice(networks, func(i, j int) bool {
 		return networks[i].totalError < networks[j].totalError
 	})
-
 	for idx, net := range networks {
-		log.Println(`error for`, idx, net.totalError)
+		log.Println(idx, `->`, net.totalError)
 	}
 }
