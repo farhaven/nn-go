@@ -194,23 +194,70 @@ func (n *Network) splitRandomEdge() {
 	n.edges = newEdges
 }
 
+type Sample struct {
+	inputs []float64
+	targets []float64
+}
+
+/* trainingError returns the squared distance of the network output from the desired sample output */
+func (n *Network) trainingError(sample Sample, edgeWeight float64) (float64, error) {
+	if len(sample.targets) != len(n.outputs) {
+		return 0, errors.New(`invalid target size`)
+	}
+
+	outputs, err := n.feed(sample.inputs, edgeWeight)
+	if err != nil {
+		return 0, err
+	}
+
+	sum := float64(0)
+
+	for idx, output := range outputs {
+		sum += math.Pow(output - sample.targets[idx], 2)
+	}
+
+	return sum, nil
+}
+
+/* totalError returns the sum of the total error for all training examples */
+func (n *Network) totalError(samples []Sample, edgeWeight float64) (float64, error) {
+	sum := float64(0)
+
+	for _, s := range samples {
+		te, err := n.trainingError(s, edgeWeight)
+		if err != nil {
+			return 0, err
+		}
+		sum += te
+	}
+
+	return sum, nil
+}
+
 func main() {
-	input := []float64{0.5, -0.5}
-
-	net := NewNetwork()
-
-	out, err := net.feed(input, 1.0)
-	if err != nil {
-		log.Fatalln(`can't feed`, err)
+	samples := []Sample{
+		Sample{[]float64{0, 0}, []float64{0}},
+		Sample{[]float64{0, 1}, []float64{1}},
+		Sample{[]float64{1, 0}, []float64{1}},
+		Sample{[]float64{1, 1}, []float64{0}},
 	}
-	log.Println(`net before split:`, net, `output`, out)
 
-	net.splitRandomEdge()
-	net.addRandomEdge()
-
-	out, err = net.feed(input, 1.0)
-	if err != nil {
-		log.Fatalln(`can't feed`, err)
+	networks := []Network{}
+	for idx := 0; idx < 10; idx++ {
+		net := NewNetwork()
+		if rand.Intn(2) == 0 {
+			net.addRandomEdge()
+		} else {
+			net.splitRandomEdge()
+		}
+		networks = append(networks, net)
 	}
-	log.Println(`net after split:`, net, `output`, out)
+
+	for _, net := range networks {
+		te, err := net.totalError(samples, 1.0)
+		if err != nil {
+			log.Fatalln(`can't get total error:`, err)
+		}
+		log.Println(`total error:`, te)
+	}
 }
