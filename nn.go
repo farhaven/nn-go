@@ -236,10 +236,10 @@ func (n *Network) totalError(samples []Sample, edgeWeight float64) (float64, err
 
 func main() {
 	samples := []Sample{
-		Sample{[]float64{0, 0}, []float64{0}},
-		Sample{[]float64{0, 1}, []float64{1}},
-		Sample{[]float64{1, 0}, []float64{1}},
-		Sample{[]float64{1, 1}, []float64{0}},
+		Sample{[]float64{-1, -1}, []float64{-1}},
+		Sample{[]float64{-1, 1}, []float64{1}},
+		Sample{[]float64{1, -1}, []float64{1}},
+		Sample{[]float64{1, 1}, []float64{-1}},
 	}
 
 	networks := []Network{}
