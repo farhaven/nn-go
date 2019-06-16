@@ -188,6 +188,13 @@ func (n *Network) addRandomEdge() {
 	srcNode := n.nodes[srcIdx]
 	dstNode := n.nodes[dstIdx].(*SumNode)
 
+	for _, node := range dstNode.inputs {
+		if node == srcNode {
+			/* Edge already exists */
+			return
+		}
+	}
+
 	dstNode.inputs = append(dstNode.inputs, srcNode)
 }
 
