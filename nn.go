@@ -341,7 +341,7 @@ func (n *Network) updateTotalError(samples []Sample) {
 }
 
 func (n *Network) performance() float64 {
-	if rand.Intn(30) == 0 {
+	if rand.Intn(2) == 0 {
 		return 1 / (n.totalError + 1)
 	}
 
