@@ -499,11 +499,9 @@ func (n *Network) updateTotalError(samples []Sample) {
 	n.totalError = totalError
 }
 
-func (n *Network) performance() float64 {
-	if rand.Intn(200) == 0 {
-		return 1 / (n.totalError + 1)
-	}
+const cutoff = 0.125
 
+func (n *Network) performance() float64 {
 	/* Count number of edges, discount total error for networks with low edge count */
 	numEdges := 0
 	for _, node := range n.nodes[n.numInputs:] {
@@ -511,7 +509,9 @@ func (n *Network) performance() float64 {
 		numEdges += len(node.inputs)
 	}
 
-	return 1.0 / ((n.totalError * float64(numEdges)) + 1)
+	dist := math.Pow((1 - cutoff) * float64(n.totalError), 2) + math.Pow(cutoff * float64(numEdges), 2)
+
+	return 1 / (dist + 1)
 }
 
 const numEpochs = 1000
