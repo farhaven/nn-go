@@ -292,7 +292,8 @@ func (n *Network) updateTotalError(samples []Sample, edgeWeight float64) error {
 	return nil
 }
 
-const numEpochs = 6
+const numEpochs = 5
+const splitAdd = 10
 
 func main() {
 	samples := []Sample{
@@ -305,7 +306,7 @@ func main() {
 	networks := []*Network{}
 	for idx := 0; idx < 10; idx++ {
 		net := NewNetwork()
-		if rand.Intn(2) == 0 {
+		if rand.Intn(splitAdd) == 0 {
 			net.addRandomEdge()
 		} else {
 			net.splitRandomEdge()
@@ -332,7 +333,7 @@ func main() {
 		clones := []*Network{}
 		for _, net := range networks {
 			clone := net.Clone()
-			if rand.Intn(2) == 0 {
+			if rand.Intn(splitAdd) == 0 {
 				net.addRandomEdge()
 			} else {
 				net.splitRandomEdge()
@@ -353,5 +354,14 @@ func main() {
 	})
 	for idx, net := range networks {
 		log.Println(idx, `->`, net.totalError)
+	}
+
+	log.Println(`output of best network:`)
+	for _, sample := range samples {
+		outputs, err := networks[0].feed(sample.inputs, 1.0)
+		if err != nil {
+			log.Fatalln(`can't get output from network:`, err)
+		}
+		log.Println(`in:`, sample.inputs, `out:`, outputs, `target:`, sample.targets)
 	}
 }
