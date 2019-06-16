@@ -62,6 +62,7 @@ func (r Relu) Apply(n float64) float64 {
 }
 
 type Sine struct{}
+
 func (s Sine) Apply(n float64) float64 {
 	return math.Sin(n)
 }
@@ -72,22 +73,22 @@ type SumNode struct {
 	value  float64
 }
 
-func NewSumNode(inputs []Node) *SumNode {
-	var op Operation
-
+func RandomOperation() Operation {
 	switch rand.Intn(4) {
 	case 0:
-		op = Invert{}
+		return Invert{}
 	case 1:
-		op = Tanh{}
+		return Tanh{}
 	case 2:
-		op = Relu{}
-	case 3:
-		op = Sine{}
+		return Relu{}
+	default:
+		return Sine{}
 	}
+}
 
+func NewSumNode(inputs []Node) *SumNode {
 	return &SumNode{
-		op:     op,
+		op:     RandomOperation(),
 		inputs: inputs,
 	}
 }
@@ -168,7 +169,7 @@ func (n *Network) feed(inputs []float64) {
 		node.value = input
 	}
 
-	/* Iterate over remaining layers and update node values */
+	/* Iterate over remaining nodes and update node values */
 	for _, node := range n.nodes[n.numInputs:] {
 		node.updateValue()
 	}
@@ -199,7 +200,7 @@ func (n *Network) addRandomEdge() {
 }
 
 func (n *Network) removeRandomEdge() {
-	dstIdx := rand.Intn(len(n.nodes) - n.numInputs) + n.numInputs
+	dstIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
 	dstNode := n.nodes[dstIdx].(*SumNode)
 
 	srcIdx := rand.Intn(len(dstNode.inputs))
@@ -238,10 +239,9 @@ func (n *Network) splitRandomEdge() {
 	newInputs = append(newInputs, middleNode)
 	dstNode.inputs = newInputs
 
-	/* Insert middle not right after src, or after last input if src is an input node */
-	middleIdx := srcIdx + 1
-	if srcIdx < n.numInputs {
-		middleIdx = n.numInputs
+	middleIdx := dstIdx
+	if srcIdx >= len(n.nodes)-n.numOutputs {
+		middleIdx = len(n.nodes)
 	}
 	n.nodes = append(n.nodes, nil)
 	copy(n.nodes[middleIdx+1:], n.nodes[middleIdx:])
@@ -282,18 +282,24 @@ func (n *Network) Clone() *Network {
 	}
 
 	return &Network{
-		nodes: newNodes,
-		numInputs: n.numInputs,
+		nodes:      newNodes,
+		numInputs:  n.numInputs,
 		numOutputs: n.numOutputs,
 	}
 }
 
-func (n *Network) dumpDot() {
-	fh, err := os.Create(`net.dot`)
+func (n *Network) dumpDot(fname string) {
+	fh, err := os.Create(fname)
 	if err != nil {
 		log.Fatalln(`can't create file:`, err)
 	}
 	defer fh.Close()
+
+	edgeCount := 0
+	for _, node := range n.nodes[n.numInputs:] {
+		node := node.(*SumNode)
+		edgeCount += len(node.inputs)
+	}
 
 	fh.WriteString("digraph {\n")
 	for _, node := range n.nodes {
@@ -304,12 +310,14 @@ func (n *Network) dumpDot() {
 			}
 		} else {
 			cn := node.(*ConstantNode)
-			fh.WriteString(fmt.Sprintf("\t\"%p\" [style=filled, fillcolor=green, label=\"%f\"]\n", cn, cn.value))
+			fh.WriteString(fmt.Sprintf("\t\"%p\" [style=filled, fillcolor=green, label=\"%f\"];\n", cn, cn.value))
 		}
 	}
+	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d\";\n", n.performance(), edgeCount))
+	fh.WriteString("\tlabelloc=top;\n")
 	fh.WriteString("}\n")
 
-	log.Println(`network written to net.dot`)
+	log.Println(`network written to`, fname)
 }
 
 type Sample struct {
@@ -363,15 +371,19 @@ func main() {
 	log.Println(`here we go`)
 
 	samples := []Sample{
-		Sample{[]float64{-1, -1}, []float64{-1}},
-		Sample{[]float64{-1, 1}, []float64{1}},
-		Sample{[]float64{1, -1}, []float64{1}},
-		Sample{[]float64{1, 1}, []float64{-1}},
+		Sample{[]float64{-1, -1, -1}, []float64{-1}},
+		Sample{[]float64{-1, -1, 1}, []float64{1}},
+		Sample{[]float64{-1, 1, -1}, []float64{1}},
+		Sample{[]float64{-1, 1, 1}, []float64{-1}},
+		Sample{[]float64{1, -1, -1}, []float64{1}},
+		Sample{[]float64{1, -1, 1}, []float64{-1}},
+		Sample{[]float64{1, 1, -1}, []float64{-1}},
+		Sample{[]float64{1, 1, 1}, []float64{1}},
 	}
 
 	networks := []*Network{}
-	for idx := 0; idx < epochSlice * 2; idx++ {
-		networks = append(networks, NewNetwork(2, 1))
+	for idx := 0; idx < epochSlice*2; idx++ {
+		networks = append(networks, NewNetwork(3, 1))
 	}
 
 	for epoch := 0; epoch < numEpochs; epoch++ {
@@ -393,16 +405,16 @@ func main() {
 			switch rand.Intn(5) {
 			case 0:
 				clone.removeRandomEdge()
-			case 1,2:
+			case 1, 2:
 				clone.addRandomEdge()
-			case 3,4:
+			case 3, 4:
 				clone.splitRandomEdge()
 			}
 			newNetworks = append(newNetworks, clone)
 		}
 		networks = append(networks, newNetworks...)
 
-		if epoch % 10 == 0 {
+		if epoch%10 == 0 {
 			log.Println(`epoch`, epoch, `best performance`, networks[0].performance())
 		}
 	}
@@ -417,9 +429,9 @@ func main() {
 
 	for idx, net := range networks {
 		log.Println(idx, `->`, net.performance())
+		net.dumpDot(fmt.Sprintf(`graphs/%03d.dot`, idx))
 	}
 
-	networks[0].dumpDot()
 	log.Println(`output of best network:`)
 	for _, s := range samples {
 		networks[0].feed(s.inputs)
