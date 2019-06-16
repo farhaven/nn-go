@@ -409,19 +409,27 @@ func (n *Network) dumpDot(fname string, samples []Sample) {
 	}
 
 	fh.WriteString("digraph {\n")
-	for idx, node := range n.nodes {
-		if sn, ok := node.(*SumNode); ok {
-			fh.WriteString("\t" + sn.graphViz())
-			for _, input := range sn.inputs {
-				fh.WriteString(fmt.Sprintf("\t\"%p\" -> \"%p\";\n", input, sn))
-			}
-		} else {
-			cn := node.(*ConstantNode)
-			label := fmt.Sprintf("%f", cn.value)
-			if idx == n.numInputs - 1 {
-				label = "BIAS"
-			}
-			fh.WriteString(fmt.Sprintf("\t\"%p\" [fontname=\"Ubuntu Mono\", style=filled, fillcolor=green, label=\"%d: %s\"];\n", cn, idx, label))
+	fh.WriteString("{ rank=same;\n")
+
+	for idx, node := range n.nodes[:n.numInputs] {
+		cn := node.(*ConstantNode)
+		label := fmt.Sprintf("%f", cn.value)
+		if idx == n.numInputs - 1 {
+			label = "BIAS"
+		}
+		fh.WriteString(fmt.Sprintf("\t\"%p\" [fontname=\"Ubuntu Mono\", style=filled, fillcolor=green, label=\"%d: %s\"];\n", cn, idx, label))
+	}
+	fh.WriteString("}\n");
+
+	for idx, node := range n.nodes[n.numInputs:] {
+		idx += n.numInputs
+		node := node.(*SumNode)
+		fh.WriteString("\t" + node.graphViz())
+		for _, input := range node.inputs {
+			fh.WriteString(fmt.Sprintf("\t\"%p\" -> \"%p\";\n", input, node))
+		}
+		if idx >= len(n.nodes) - n.numOutputs {
+			fh.WriteString(fmt.Sprintf("\t\"%p\" [shape=doubleoctagon, style=\"rounded\"];\n", node))
 		}
 	}
 	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d, Total Error: %f\";\n", n.performance(), edgeCount, n.totalError))
