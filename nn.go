@@ -307,6 +307,54 @@ func (n *Network) splitRandomEdge() {
 	n.nodes[middleIdx] = middleNode
 }
 
+func (n *Network) dedupEdges() {
+	for _, node := range n.nodes[n.numInputs:] {
+		node := node.(*SumNode)
+		inputs := make(map[Node]bool)
+		for _, input := range node.inputs {
+			inputs[input] = true
+		}
+		newInputs := []Node{}
+		for input, _ := range inputs {
+			newInputs = append(newInputs, input)
+		}
+		node.inputs = newInputs
+	}
+}
+
+func (n *Network) removeDeadEnds() {
+	/* Dead ends are nodes that are not outputs or inputs and which are not inputs to any other node */
+
+	changed := true
+	for changed {
+		changed = false
+
+		usedAsInput := make(map[Node]bool)
+		for _, node := range n.nodes[n.numInputs:] {
+			node := node.(*SumNode)
+			for _, input := range node.inputs {
+				usedAsInput[input] = true
+			}
+		}
+
+		removeIndices := []int{}
+		for idx, node := range n.nodes[n.numInputs:len(n.nodes) - n.numOutputs] {
+			idx += n.numInputs
+			if !usedAsInput[node] {
+				removeIndices = append(removeIndices, idx)
+			}
+		}
+
+		for idx := len(removeIndices) - 1; idx >= 0; idx-- {
+			n.nodes = append(n.nodes[:removeIndices[idx]], n.nodes[removeIndices[idx]+1:]...)
+		}
+
+		if len(removeIndices) != 0 {
+			changed = true
+		}
+	}
+}
+
 func (n *Network) getOutput() []float64 {
 	res := []float64{}
 
@@ -542,10 +590,15 @@ func main() {
 				networks = append(networks, net)
 			}
 		}
+
+		for _, net := range networks {
+			net.dedupEdges()
+		}
 	}
 
 	for _, net := range networks {
 		net.updateTotalError(samples)
+		net.removeDeadEnds()
 	}
 
 	sort.Slice(networks, func(i, j int) bool {
