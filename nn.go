@@ -529,20 +529,15 @@ func main() {
 	rand.Seed(time.Now().Unix())
 	log.Println(`here we go`)
 
-	samples := []Sample{
-		Sample{[]float64{-1, -1, -1}, []float64{-1}},
-		Sample{[]float64{-1, -1, 1}, []float64{1}},
-		Sample{[]float64{-1, 1, -1}, []float64{1}},
-		Sample{[]float64{-1, 1, 1}, []float64{-1}},
-		Sample{[]float64{1, -1, -1}, []float64{1}},
-		Sample{[]float64{1, -1, 1}, []float64{-1}},
-		Sample{[]float64{1, 1, -1}, []float64{-1}},
-		Sample{[]float64{1, 1, 1}, []float64{1}},
+	samples := []Sample{}
+	for idx := 0; idx < 30; idx++ {
+		in := float64(idx) * ((math.Pi * 2) / 30)
+		samples = append(samples, Sample{[]float64{in}, []float64{math.Cos(in)}})
 	}
 
 	networks := []*Network{}
 	for idx := 0; idx < epochSlice*2; idx++ {
-		networks = append(networks, NewNetwork(3, 1))
+		networks = append(networks, NewNetwork(1, 1))
 	}
 
 	trainingLoop:
