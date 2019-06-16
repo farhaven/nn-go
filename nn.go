@@ -252,6 +252,12 @@ func (n *Network) addRandomEdge() {
 	dstNode.inputs = append(dstNode.inputs, srcNode)
 }
 
+func (n *Network) changeRandomNodeType() {
+	nodeIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
+	node := n.nodes[nodeIdx].(*SumNode)
+	node.op = RandomOperation()
+}
+
 func (n *Network) removeRandomEdge() {
 	dstIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
 	dstNode := n.nodes[dstIdx].(*SumNode)
@@ -503,12 +509,14 @@ func main() {
 				clone := net.Clone()
 				mutationCount := rand.Intn(3)
 				for idx := 0; idx < mutationCount; idx++ {
-					switch rand.Intn(5) {
-					case 0:
+					switch rand.Intn(10) {
+					case 0, 9:
+						clone.changeRandomNodeType()
+					case 1, 8:
 						clone.removeRandomEdge()
-					case 1, 2:
+					case 2, 3, 4:
 						clone.addRandomEdge()
-					case 3, 4:
+					case 5, 6, 7:
 						clone.splitRandomEdge()
 					}
 				}
