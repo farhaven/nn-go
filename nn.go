@@ -61,6 +61,11 @@ func (r Relu) Apply(n float64) float64 {
 	return n
 }
 
+type Sine struct{}
+func (s Sine) Apply(n float64) float64 {
+	return math.Sin(n)
+}
+
 type SumNode struct {
 	op     Operation
 	inputs []Node
@@ -70,13 +75,15 @@ type SumNode struct {
 func NewSumNode(inputs []Node) *SumNode {
 	var op Operation
 
-	switch rand.Intn(3) {
+	switch rand.Intn(4) {
 	case 0:
 		op = Invert{}
 	case 1:
 		op = Tanh{}
 	case 2:
 		op = Relu{}
+	case 3:
+		op = Sine{}
 	}
 
 	return &SumNode{
@@ -101,8 +108,10 @@ func (s *SumNode) graphViz() string {
 	} else if s.op == (Tanh{}) {
 		style = ", style=filled, fillcolor=gray"
 		label = "∫ " + label
-	} else if s.op == (Relu{}) {
+	} else if s.op == (Sine{}) {
 		label = "∿ " + label
+	} else if s.op == (Relu{}) {
+		label = "⦧ " + label
 	}
 
 	res := fmt.Sprintf("\t\"%p\" [label=\"%s\"", s, label)
