@@ -194,9 +194,10 @@ type Network struct {
 }
 
 func NewNetwork(numInputs, numOutputs int) *Network {
+	numInputs += 1 /* Add a bias node */
 	nodes := []Node{}
 	for idx := 0; idx < numInputs; idx++ {
-		nodes = append(nodes, &ConstantNode{})
+		nodes = append(nodes, &ConstantNode{1})
 	}
 
 	for idx := 0; idx < numOutputs; idx++ {
@@ -211,7 +212,7 @@ func NewNetwork(numInputs, numOutputs int) *Network {
 }
 
 func (n *Network) feed(inputs []float64) {
-	if len(inputs) != n.numInputs {
+	if len(inputs) != n.numInputs - 1 {
 		panic(`invalid input length`)
 	}
 
@@ -362,7 +363,11 @@ func (n *Network) dumpDot(fname string) {
 			}
 		} else {
 			cn := node.(*ConstantNode)
-			fh.WriteString(fmt.Sprintf("\t\"%p\" [style=filled, fillcolor=green, label=\"%f\"];\n", cn, cn.value))
+			label := fmt.Sprintf("%f", cn.value)
+			if idx == n.numInputs - 1 {
+				label = "BIAS"
+			}
+			fh.WriteString(fmt.Sprintf("\t\"%p\" [fontname=\"Ubuntu Mono\", style=filled, fillcolor=green, label=\"%d: %s\"];\n", cn, idx, label))
 		}
 	}
 	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d\";\n", n.performance(), edgeCount))
