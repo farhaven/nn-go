@@ -81,19 +81,49 @@ func (s Sine) Apply(n float64) float64 {
 }
 
 func (s Sine) Id() int {
+	return 3
+}
+
+type Identity struct{}
+func (i Identity) Apply(n float64) float64 {
+	return n
+}
+func (i Identity) Id() int {
 	return 4
 }
 
+type Gauss struct{}
+func (g Gauss) Apply(n float64) float64 {
+	sigma := 1.0
+	mu := 0.0
+
+	z := rand.Float64() * 2 - 1.0
+
+	r := (1.0 / (sigma * math.Sqrt(2 * math.Pi))) * math.Exp(-math.Pow(z - mu, 2) / (2 * math.Pow(sigma, 2)))
+
+	return r
+}
+
+func (g Gauss) Id() int {
+	return 5
+}
+
 func RandomOperation() Operation {
-	switch rand.Intn(4) {
+	switch rand.Intn(6) {
 	case 0:
 		return Invert{}
 	case 1:
 		return Tanh{}
 	case 2:
 		return ELU{}
-	default:
+	case 3:
 		return Sine{}
+	case 4:
+		return Identity{}
+	case 5:
+		return Gauss{}
+	default:
+		panic(`unknown operation`)
 	}
 }
 
@@ -130,6 +160,11 @@ func (s *SumNode) graphViz() string {
 		label = "∿ " + label
 	} else if s.op == (ELU{}) {
 		label = "⦧ " + label
+	} else if s.op == (Identity{}) {
+		label = "⦿ " + label
+	} else if s.op == (Gauss{}) {
+		style = ", style=filled, fillcolor=lightblue"
+		label = "⦿ " + label
 	}
 
 	res := fmt.Sprintf("\t\"%p\" [label=\"%s\"", s, label)
