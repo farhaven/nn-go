@@ -5,6 +5,9 @@ import (
 	"sort"
 )
 
+const numEpochs = 1000
+const epochSlice = 50 // Number of survivors for each epoch
+
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
 trainingLoop:
 	for epoch := 0; epoch < numEpochs; epoch++ {

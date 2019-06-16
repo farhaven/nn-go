@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-const numEpochs = 1000
-const epochSlice = 50 // Number of survivors for each epoch
-
 func main() {
 	rand.Seed(time.Now().Unix())
 	log.Println(`here we go`)
