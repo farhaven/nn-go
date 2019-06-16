@@ -347,3 +347,19 @@ func (n *Network) performance() float64 {
 
 	return 1 / (dist + 1)
 }
+
+func (n *Network) mutate() {
+	mutationCount := rand.Intn(3)
+	for idx := 0; idx < mutationCount; idx++ {
+		switch rand.Intn(10) {
+		case 0, 1:
+			n.changeRandomNodeType()
+		case 2, 3:
+			n.removeRandomEdge()
+		case 4, 5, 6:
+			n.addRandomEdge()
+		case 7, 8, 9:
+			n.splitRandomEdge()
+		}
+	}
+}

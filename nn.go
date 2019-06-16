@@ -49,19 +49,7 @@ trainingLoop:
 			newNetworks := []*Network{}
 			for _, net := range networks {
 				clone := net.Clone()
-				mutationCount := rand.Intn(3)
-				for idx := 0; idx < mutationCount; idx++ {
-					switch rand.Intn(10) {
-					case 0, 9:
-						clone.changeRandomNodeType()
-					case 1, 8:
-						clone.removeRandomEdge()
-					case 2, 3, 4:
-						clone.addRandomEdge()
-					case 5, 6, 7:
-						clone.splitRandomEdge()
-					}
-				}
+				clone.mutate()
 				newNetworks = append(newNetworks, clone)
 			}
 			networks = append(networks, newNetworks...)
