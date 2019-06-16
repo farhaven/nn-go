@@ -29,10 +29,39 @@ func (c *ConstantNode) updateValue() {
 	/* Do nothing here, the value does not depend on any other nodes */
 }
 
+type Operation interface {
+	Apply(float64) float64
+}
+
+type Invert struct {}
+func (i Invert) Apply(n float64) float64 {
+	return -n
+}
+
+type Tanh struct{}
+func (t Tanh) Apply(n float64) float64 {
+	return math.Tanh(n)
+}
+
 type SumNode struct {
-	f      func(float64) float64
+	op      Operation
 	inputs []Node
 	value  float64
+}
+
+func NewSumNode(inputs []Node) *SumNode {
+	var op Operation
+
+	if rand.Intn(2) == 0 {
+		op = Invert{}
+	} else {
+		op = Tanh{}
+	}
+
+	return &SumNode{
+		op: op,
+		inputs: inputs,
+	}
 }
 
 func (s *SumNode) updateValue() {
@@ -42,7 +71,7 @@ func (s *SumNode) updateValue() {
 		sum += input.getValue()
 	}
 
-	s.value = s.f(sum)
+	s.value = s.op.Apply(sum)
 }
 
 func (s *SumNode) getValue() float64 {
@@ -62,10 +91,7 @@ func NewNetwork(numInputs, numOutputs int) Network {
 	}
 
 	for idx := 0; idx < numOutputs; idx++ {
-		nodes = append(nodes, &SumNode{
-			f:      math.Tanh,
-			inputs: nodes[:numInputs],
-		})
+		nodes = append(nodes, NewSumNode(nodes[:numInputs]))
 	}
 
 	return Network{
@@ -128,13 +154,8 @@ func (n *Network) splitRandomEdge() {
 		panic(`can't find index for source node`)
 	}
 
-	log.Println(`src idx:`, srcIdx, `src node:`, srcNode)
-
 	/* Create new middle node */
-	middleNode := &SumNode{
-		f: math.Tanh,
-		inputs: []Node{srcNode},
-	}
+	middleNode := NewSumNode([]Node{srcNode})
 
 	/* Replace src with middle node in dst's input list */
 	newInputs := []Node{}
@@ -176,7 +197,11 @@ func (n *Network) dumpDot() {
 	fh.WriteString("digraph {\n")
 	for _, node := range n.nodes {
 		if sn, ok := node.(*SumNode); ok {
-			fh.WriteString(fmt.Sprintf("\t\"%p\" [label=\"%f\"]", sn, sn.value))
+			fh.WriteString(fmt.Sprintf("\t\"%p\" [label=\"%f\"", sn, sn.value))
+			if sn.op == (Invert{}) {
+				fh.WriteString(", style=filled, fillcolor=red")
+			}
+			fh.WriteString("]\n")
 			for _, input := range sn.inputs {
 				fh.WriteString(fmt.Sprintf("\t\"%p\" -> \"%p\";\n", input, sn))
 			}
@@ -197,19 +222,17 @@ func main() {
 
 	log.Println(`network:`, net)
 
-	net.feed([]float64{1, 0})
-	log.Println(`network output:`, net.getOutput())
+	net.splitRandomEdge()
+	net.addRandomEdge()
+	net.splitRandomEdge()
+	net.addRandomEdge()
+	net.splitRandomEdge()
+	net.addRandomEdge()
+	net.splitRandomEdge()
 
-	net.splitRandomEdge()
-	net.addRandomEdge()
-	net.splitRandomEdge()
-	net.addRandomEdge()
-	net.splitRandomEdge()
-	net.addRandomEdge()
-	net.splitRandomEdge()
+	net.feed([]float64{1, 1})
 
 	net.dumpDot()
 
-	net.feed([]float64{1, 0})
 	log.Println(`network output:`, net.getOutput())
 }
