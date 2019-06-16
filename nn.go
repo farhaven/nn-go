@@ -191,6 +191,16 @@ func (n *Network) addRandomEdge() {
 	dstNode.inputs = append(dstNode.inputs, srcNode)
 }
 
+func (n *Network) removeRandomEdge() {
+	dstIdx := rand.Intn(len(n.nodes) - n.numInputs) + n.numInputs
+	dstNode := n.nodes[dstIdx].(*SumNode)
+
+	srcIdx := rand.Intn(len(dstNode.inputs))
+
+	newInputs := dstNode.inputs[:srcIdx]
+	newInputs = append(newInputs, dstNode.inputs[srcIdx+1:]...)
+}
+
 /* Splits a random edge between two nodes. */
 func (n *Network) splitRandomEdge() {
 	dstIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
@@ -373,9 +383,12 @@ func main() {
 		newNetworks := []*Network{}
 		for _, net := range networks {
 			clone := net.Clone()
-			if rand.Intn(2) == 0 {
+			switch rand.Intn(5) {
+			case 0:
+				clone.removeRandomEdge()
+			case 1,2:
 				clone.addRandomEdge()
-			} else {
+			case 3,4:
 				clone.splitRandomEdge()
 			}
 			newNetworks = append(newNetworks, clone)
