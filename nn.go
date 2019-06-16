@@ -38,6 +38,7 @@ func (c *ConstantNode) clone() Node {
 
 type Operation interface {
 	Apply(float64) float64
+	Id() int
 }
 
 type Invert struct{}
@@ -46,19 +47,31 @@ func (i Invert) Apply(n float64) float64 {
 	return -n
 }
 
+func (i Invert) Id() int {
+	return 0
+}
+
 type Tanh struct{}
 
 func (t Tanh) Apply(n float64) float64 {
 	return math.Tanh(n)
 }
 
-type Relu struct{}
+func (t Tanh) Id() int {
+	return 1
+}
 
-func (r Relu) Apply(n float64) float64 {
+type ELU struct{}
+
+func (r ELU) Apply(n float64) float64 {
 	if n < 0 {
-		return 0.01 * n
+		return -math.Log(-n)
 	}
 	return n
+}
+
+func (r ELU) Id() int {
+	return 2
 }
 
 type Sine struct{}
@@ -67,10 +80,8 @@ func (s Sine) Apply(n float64) float64 {
 	return math.Sin(n)
 }
 
-type SumNode struct {
-	op     Operation
-	inputs []Node
-	value  float64
+func (s Sine) Id() int {
+	return 4
 }
 
 func RandomOperation() Operation {
@@ -80,10 +91,16 @@ func RandomOperation() Operation {
 	case 1:
 		return Tanh{}
 	case 2:
-		return Relu{}
+		return ELU{}
 	default:
 		return Sine{}
 	}
+}
+
+type SumNode struct {
+	op     Operation
+	inputs []Node
+	value  float64
 }
 
 func NewSumNode(inputs []Node) *SumNode {
@@ -111,7 +128,7 @@ func (s *SumNode) graphViz() string {
 		label = "∫ " + label
 	} else if s.op == (Sine{}) {
 		label = "∿ " + label
-	} else if s.op == (Relu{}) {
+	} else if s.op == (ELU{}) {
 		label = "⦧ " + label
 	}
 
@@ -239,9 +256,9 @@ func (n *Network) splitRandomEdge() {
 	newInputs = append(newInputs, middleNode)
 	dstNode.inputs = newInputs
 
-	middleIdx := dstIdx
-	if srcIdx >= len(n.nodes)-n.numOutputs {
-		middleIdx = len(n.nodes)
+	middleIdx := srcIdx + 1
+	if srcIdx < n.numInputs {
+		middleIdx = n.numInputs
 	}
 	n.nodes = append(n.nodes, nil)
 	copy(n.nodes[middleIdx+1:], n.nodes[middleIdx:])
@@ -316,8 +333,25 @@ func (n *Network) dumpDot(fname string) {
 	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d\";\n", n.performance(), edgeCount))
 	fh.WriteString("\tlabelloc=top;\n")
 	fh.WriteString("}\n")
+}
 
-	log.Println(`network written to`, fname)
+func (n *Network) structuralHash() string {
+	h := fmt.Sprintf("%d|%d|", n.numInputs, n.numOutputs)
+
+	nodeIdx := make(map[Node]int)
+
+	for idx, node := range n.nodes {
+		nodeIdx[node] = idx
+		if node, ok := node.(*SumNode); ok {
+			h += fmt.Sprintf("#%d|", node.op.Id())
+			for _, input := range node.inputs {
+				h += fmt.Sprintf("%d|", nodeIdx[input])
+			}
+			h += "#"
+		}
+	}
+
+	return h
 }
 
 type Sample struct {
@@ -349,7 +383,7 @@ func (n *Network) updateTotalError(samples []Sample) {
 }
 
 func (n *Network) performance() float64 {
-	if rand.Intn(2) == 0 {
+	if rand.Intn(200) == 0 {
 		return 1 / (n.totalError + 1)
 	}
 
@@ -386,6 +420,7 @@ func main() {
 		networks = append(networks, NewNetwork(3, 1))
 	}
 
+	trainingLoop:
 	for epoch := 0; epoch < numEpochs; epoch++ {
 		for _, net := range networks {
 			net.updateTotalError(samples)
@@ -398,24 +433,43 @@ func main() {
 		/* Cull non-survivors */
 		networks = networks[:epochSlice]
 
-		/* Clone each survivor and mutate the clone */
-		newNetworks := []*Network{}
-		for _, net := range networks {
-			clone := net.Clone()
-			switch rand.Intn(5) {
-			case 0:
-				clone.removeRandomEdge()
-			case 1, 2:
-				clone.addRandomEdge()
-			case 3, 4:
-				clone.splitRandomEdge()
+		for len(networks) <= epochSlice {
+			/* Clone each survivor and mutate the clone */
+			newNetworks := []*Network{}
+			for _, net := range networks {
+				clone := net.Clone()
+				mutationCount := rand.Intn(3)
+				for idx := 0; idx < mutationCount; idx++ {
+					switch rand.Intn(5) {
+					case 0:
+						clone.removeRandomEdge()
+					case 1, 2:
+						clone.addRandomEdge()
+					case 3, 4:
+						clone.splitRandomEdge()
+					}
+				}
+				newNetworks = append(newNetworks, clone)
 			}
-			newNetworks = append(newNetworks, clone)
-		}
-		networks = append(networks, newNetworks...)
+			networks = append(networks, newNetworks...)
 
-		if epoch%10 == 0 {
-			log.Println(`epoch`, epoch, `best performance`, networks[0].performance())
+			if epoch%10 == 0 {
+				bestPerf := networks[0].performance()
+				log.Println(`epoch`, epoch, `best performance`, bestPerf)
+				if bestPerf == 1 && epoch > 0 {
+					break trainingLoop
+				}
+			}
+
+			/* Cull duplicates */
+			structures := make(map[string]*Network)
+			for _, net := range networks {
+				structures[net.structuralHash()] = net
+			}
+			networks = []*Network{}
+			for _, net := range structures {
+				networks = append(networks, net)
+			}
 		}
 	}
 
@@ -428,7 +482,6 @@ func main() {
 	})
 
 	for idx, net := range networks {
-		log.Println(idx, `->`, net.performance())
 		net.dumpDot(fmt.Sprintf(`graphs/%03d.dot`, idx))
 	}
 
