@@ -355,7 +355,7 @@ func (n *Network) dumpDot(fname string) {
 	}
 
 	fh.WriteString("digraph {\n")
-	for _, node := range n.nodes {
+	for idx, node := range n.nodes {
 		if sn, ok := node.(*SumNode); ok {
 			fh.WriteString("\t" + sn.graphViz())
 			for _, input := range sn.inputs {
