@@ -341,7 +341,7 @@ func (n *Network) Clone() *Network {
 	}
 }
 
-func (n *Network) dumpDot(fname string) {
+func (n *Network) dumpDot(fname string, samples []Sample) {
 	fh, err := os.Create(fname)
 	if err != nil {
 		log.Fatalln(`can't create file:`, err)
@@ -370,8 +370,31 @@ func (n *Network) dumpDot(fname string) {
 			fh.WriteString(fmt.Sprintf("\t\"%p\" [fontname=\"Ubuntu Mono\", style=filled, fillcolor=green, label=\"%d: %s\"];\n", cn, idx, label))
 		}
 	}
-	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d\";\n", n.performance(), edgeCount))
+	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d, Total Error: %f\";\n", n.performance(), edgeCount, n.totalError))
 	fh.WriteString("\tlabelloc=top;\n")
+
+	evalData := ""
+
+	for _, sample := range samples {
+		n.feed(sample.inputs)
+		inputs := ""
+		for _, val := range sample.inputs {
+			inputs += fmt.Sprintf("% 3.0f", val)
+		}
+		outputs := ""
+		for _, val := range n.getOutput() {
+			outputs += fmt.Sprintf("% 3.2f", val)
+		}
+		targets := ""
+		for _, val := range sample.targets {
+			targets += fmt.Sprintf("% 3.2f", val)
+		}
+
+		evalData += fmt.Sprintf("[%s] -> [%s] [%s]\\l", inputs, outputs, targets)
+	}
+
+	fh.WriteString(fmt.Sprintf("eval [fontname=\"Ubuntu Mono\", label=\"%s\", shape=box]\n", evalData))
+
 	fh.WriteString("}\n")
 }
 
@@ -522,7 +545,7 @@ func main() {
 	})
 
 	for idx, net := range networks {
-		net.dumpDot(fmt.Sprintf(`graphs/%03d.dot`, idx))
+		net.dumpDot(fmt.Sprintf(`graphs/%03d.dot`, idx), samples)
 	}
 
 	log.Println(`output of best network:`)
