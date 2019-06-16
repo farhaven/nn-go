@@ -148,13 +148,13 @@ func (s *SumNode) clone() Node {
 
 func (s *SumNode) graphViz() string {
 	label := fmt.Sprintf("%f", s.value)
-	style := ""
+	style := "fontname=\"Ubuntu Mono\""
 
 	if s.op == (Invert{}) {
-		style = ", style=filled, fillcolor=red"
+		style += ", style=filled, fillcolor=red"
 		label = "± " + label
 	} else if s.op == (Tanh{}) {
-		style = ", style=filled, fillcolor=gray"
+		style += ", style=filled, fillcolor=gray"
 		label = "∫ " + label
 	} else if s.op == (Sine{}) {
 		label = "∿ " + label
@@ -163,7 +163,7 @@ func (s *SumNode) graphViz() string {
 	} else if s.op == (Identity{}) {
 		label = "⦿ " + label
 	} else if s.op == (Gauss{}) {
-		style = ", style=filled, fillcolor=lightblue"
+		style += ", style=filled, fillcolor=lightblue"
 		label = "⦿ " + label
 	}
 
