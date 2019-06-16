@@ -1,367 +1,215 @@
-/* This package implements a WANN (weight agnostig neural network) */
-
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"math"
 	"math/rand"
-	"sort"
+	"os"
 )
 
 type Node interface {
-	Value(edgeWeight float64) float64
-	Clone() Node
+	getValue() float64
+	updateValue()
 }
 
 type ConstantNode struct {
 	value float64
 }
 
-func (c ConstantNode) String() string {
-	return fmt.Sprintf(`Cn{%f}`, c.value)
+func (c *ConstantNode) String() string {
+	return fmt.Sprintf(`C:%p:%f`, c, c.value)
 }
 
-func (c *ConstantNode) Value(edgeWeight float64) float64 {
-	/* Edge weight is ignored here because we don't pass another edge to get this nodes' value */
+func (c *ConstantNode) getValue() float64 {
 	return c.value
 }
 
-func (c *ConstantNode) Clone() Node {
-	return &ConstantNode{c.value}
+func (c *ConstantNode) updateValue() {
+	/* Do nothing here, the value does not depend on any other nodes */
 }
 
-type TanhNode struct {
+type SumNode struct {
+	f      func(float64) float64
 	inputs []Node
-	value  float64 // last value of this node
+	value  float64
 }
 
-func (t TanhNode) String() string {
-	return fmt.Sprintf(`Tn{%f}`, t.value)
-}
-
-func (t *TanhNode) Value(edgeWeight float64) float64 {
+func (s *SumNode) updateValue() {
 	sum := float64(0)
 
-	for _, input := range t.inputs {
-		sum += input.Value(edgeWeight) * edgeWeight
+	for _, input := range s.inputs {
+		sum += input.getValue()
 	}
 
-	t.value = math.Tanh(sum)
-	return t.value
+	s.value = s.f(sum)
 }
 
-func (t *TanhNode) Clone() Node {
-	return &TanhNode{
-		inputs: []Node{},
-		value:  t.value,
-	}
-}
-
-type Edge struct {
-	from Node
-	to   Node
-}
-
-func (e Edge) String() string {
-	return fmt.Sprintf(`E{F:%v, T:%v}`, e.from, e.to)
+func (s *SumNode) getValue() float64 {
+	return s.value
 }
 
 type Network struct {
-	edges      []Edge
-	outputs    []Node
-	inputs     []Node
-	totalError float64
+	nodes      []Node
+	numInputs  int
+	numOutputs int
 }
 
-func NewNetwork() Network {
-	input1 := ConstantNode{}
-	input2 := ConstantNode{}
-	output := TanhNode{
-		inputs: []Node{&input1, &input2},
+func NewNetwork(numInputs, numOutputs int) Network {
+	nodes := []Node{}
+	for idx := 0; idx < numInputs; idx++ {
+		nodes = append(nodes, &ConstantNode{})
 	}
 
-	edge1 := Edge{from: &input1, to: &output}
-	edge2 := Edge{from: &input2, to: &output}
-
-	return Network{
-		edges:   []Edge{edge1, edge2},
-		outputs: []Node{&output},
-		inputs:  []Node{&input1, &input2},
-	}
-}
-
-func (n Network) String() string {
-	return fmt.Sprintf("N{\n\te{%v},\n\ti{%v},\n\to{%v}}", n.edges, n.inputs, n.outputs)
-}
-
-func (n *Network) Clone() Network {
-	/* Create clones of all nodes, then reconstruct edges and input mappings */
-	clones := make(map[Node]Node)
-	for _, edge := range n.edges {
-		clones[edge.from] = edge.from.Clone()
-		clones[edge.to] = edge.to.Clone()
-	}
-
-	/* Rebuild edges and input mappings */
-	newEdges := []Edge{}
-	for _, edge := range n.edges {
-		e := Edge{
-			from: clones[edge.from],
-			to:   clones[edge.to],
-		}
-		newEdges = append(newEdges, e)
-
-		/* Rebuild input nodes if the edge.to is a TanhNode */
-		if th, ok := edge.to.(*TanhNode); ok {
-			clone := clones[edge.to].(*TanhNode)
-			for _, input := range th.inputs {
-				clone.inputs = append(clone.inputs, clones[input])
-			}
-		}
-	}
-
-	/* Gather new input and output nodes */
-	newInputs := []Node{}
-	for _, input := range n.inputs {
-		newInputs = append(newInputs, clones[input])
-	}
-	newOutputs := []Node{}
-	for _, output := range n.outputs {
-		newOutputs = append(newOutputs, clones[output])
+	for idx := 0; idx < numOutputs; idx++ {
+		nodes = append(nodes, &SumNode{
+			f:      math.Tanh,
+			inputs: nodes[:numInputs],
+		})
 	}
 
 	return Network{
-		edges:   newEdges,
-		inputs:  newInputs,
-		outputs: newOutputs,
+		nodes:      nodes,
+		numInputs:  numInputs,
+		numOutputs: numOutputs,
 	}
 }
 
-func (n *Network) feed(input []float64, edgeWeight float64) ([]float64, error) {
-	if len(input) != len(n.inputs) {
-		return nil, errors.New(`invalid input size`)
+func (n *Network) feed(inputs []float64) {
+	if len(inputs) != n.numInputs {
+		panic(`invalid input length`)
 	}
 
-	for idx, inputNode := range n.inputs {
-		inputNode := inputNode.(*ConstantNode)
-		inputNode.value = input[idx]
+	/* Set values for input layer */
+	for idx, input := range inputs {
+		node := n.nodes[idx].(*ConstantNode)
+		node.value = input
 	}
 
-	output := []float64{}
-	for _, outputNode := range n.outputs {
-		output = append(output, outputNode.Value(edgeWeight))
+	/* Iterate over remaining layers and update node values */
+	for _, node := range n.nodes[n.numInputs:] {
+		node.updateValue()
 	}
-
-	return output, nil
 }
 
+/* Adds a random edge between two nodes. */
 func (n *Network) addRandomEdge() {
-	/* Adds a new edge between existing nodes */
-
-	/* Candidates for from-nodes are inputs and inner edge nodes, candidates for to-nodes are outputs and inner edge nodes */
-	toNodesSet := make(map[Node]bool)
-	fromNodesSet := make(map[Node]bool)
-	for _, input := range n.inputs {
-		fromNodesSet[input] = true
-	}
-	for _, output := range n.outputs {
-		toNodesSet[output] = true
-	}
-	for _, edge := range n.edges {
-		fromNodesSet[edge.from] = true
-		toNodesSet[edge.to] = true
-	}
-
-	toNodes := make([]Node, 0, len(toNodesSet))
-	for node, _ := range toNodesSet {
-		toNodes = append(toNodes, node)
-	}
-	fromNodes := make([]Node, 0, len(fromNodesSet))
-	for node, _ := range fromNodesSet {
-		fromNodes = append(fromNodes, node)
-	}
-
-	/* Select random to and from node */
-	fromIdx := rand.Intn(len(fromNodes))
-	fromNode := fromNodes[fromIdx]
-	var toNode Node
+	srcIdx := rand.Intn(len(n.nodes) - n.numOutputs)
+	dstIdx := 0
 	for {
-		toIdx := rand.Intn(len(toNodes))
-		toNode = toNodes[toIdx]
-		if fromNode != toNode {
+		dstIdx = rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
+		if srcIdx < dstIdx {
 			break
 		}
 	}
 
-	/* Build new edge */
-	newEdge := Edge{
-		from: fromNode,
-		to:   toNode,
-	}
+	srcNode := n.nodes[srcIdx]
+	dstNode := n.nodes[dstIdx].(*SumNode)
 
-	n.edges = append(n.edges, newEdge)
-
-	/* Hook up source to destination */
-	toNode.(*TanhNode).inputs = append(toNode.(*TanhNode).inputs, fromNode)
+	dstNode.inputs = append(dstNode.inputs, srcNode)
 }
 
+/* Splits a random edge between two nodes. */
 func (n *Network) splitRandomEdge() {
-	/* Selects a random edge and splits it, inserting a Tanh node in between */
-	splitIdx := rand.Intn(len(n.edges))
+	dstIdx := rand.Intn(len(n.nodes) - n.numInputs) + n.numInputs
+	dstNode := n.nodes[dstIdx].(*SumNode)
 
-	splitEdge := n.edges[splitIdx]
+	log.Println(`dest idx:`, dstIdx, `dest node:`, dstNode)
 
-	newNode := TanhNode{
-		inputs: []Node{splitEdge.from},
+	srcNode := dstNode.inputs[rand.Intn(len(dstNode.inputs))]
+	srcIdx := -1
+	for idx, node := range n.nodes[:dstIdx] {
+		if node == srcNode {
+			srcIdx = idx
+			break
+		}
+	}
+	if srcIdx == -1 {
+		panic(`can't find index for source node`)
 	}
 
-	/* Create new edges between from and to, going over newNode */
-	newEdge1 := Edge{
-		from: splitEdge.from,
-		to:   &newNode,
-	}
-	newEdge2 := Edge{
-		from: &newNode,
-		to:   splitEdge.to,
+	log.Println(`src idx:`, srcIdx, `src node:`, srcNode)
+
+	/* Create new middle node */
+	middleNode := &SumNode{
+		f: math.Tanh,
+		inputs: []Node{srcNode},
 	}
 
-	/* Remove splitEdge.from from splitEdge.to's input node list and add new split Node */
+	/* Replace src with middle node in dst's input list */
 	newInputs := []Node{}
-	for _, input := range splitEdge.to.(*TanhNode).inputs { /* TODO: Remove cast */
-		if input != splitEdge.from {
+	for _, input := range dstNode.inputs {
+		if input != srcNode {
 			newInputs = append(newInputs, input)
 		}
 	}
-	newInputs = append(newInputs, &newNode)
-	splitEdge.to.(*TanhNode).inputs = newInputs /* TODO: Remove cast */
+	newInputs = append(newInputs, middleNode)
+	dstNode.inputs = newInputs
 
-	/* Remove split edge */
-	newEdges := []Edge{}
-	for _, edge := range n.edges {
-		if edge != splitEdge {
-			newEdges = append(newEdges, edge)
-		}
+	/* Insert middle not right after src, or after last input if src is an input node */
+	middleIdx := srcIdx + 1
+	if srcIdx < n.numInputs {
+		middleIdx = n.numInputs
 	}
-	/* Add new edges */
-	newEdges = append(newEdges, newEdge1)
-	newEdges = append(newEdges, newEdge2)
-	n.edges = newEdges
+	n.nodes = append(n.nodes, nil)
+	copy(n.nodes[middleIdx+1:], n.nodes[middleIdx:])
+	n.nodes[middleIdx] = middleNode
 }
 
-type Sample struct {
-	inputs  []float64
-	targets []float64
-}
+func (n *Network) getOutput() []float64 {
+	res := []float64{}
 
-/* trainingError returns the squared distance of the network output from the desired sample output */
-func (n *Network) trainingError(sample Sample, edgeWeight float64) (float64, error) {
-	if len(sample.targets) != len(n.outputs) {
-		return 0, errors.New(`invalid target size`)
+	for _, node := range n.nodes[len(n.nodes)-n.numOutputs:] {
+		res = append(res, node.getValue())
 	}
 
-	outputs, err := n.feed(sample.inputs, edgeWeight)
+	return res
+}
+
+func (n *Network) dumpDot() {
+	fh, err := os.Create(`net.dot`)
 	if err != nil {
-		return 0, err
+		log.Fatalln(`can't create file:`, err)
 	}
+	defer fh.Close()
 
-	sum := float64(0)
-
-	for idx, output := range outputs {
-		sum += math.Pow(output-sample.targets[idx], 2)
-	}
-
-	return sum, nil
-}
-
-/* totalError returns the sum of the total error for all training examples */
-func (n *Network) updateTotalError(samples []Sample, edgeWeight float64) error {
-	sum := float64(0)
-
-	for _, s := range samples {
-		te, err := n.trainingError(s, edgeWeight)
-		if err != nil {
-			return err
+	fh.WriteString("digraph {\n")
+	for _, node := range n.nodes {
+		if sn, ok := node.(*SumNode); ok {
+			fh.WriteString(fmt.Sprintf("\t\"%p\" [label=\"%f\"]", sn, sn.value))
+			for _, input := range sn.inputs {
+				fh.WriteString(fmt.Sprintf("\t\"%p\" -> \"%p\";\n", input, sn))
+			}
+		} else {
+			cn := node.(*ConstantNode)
+			fh.WriteString(fmt.Sprintf("\t\"%p\" [style=filled, fillcolor=green, label=\"%f\"]\n", cn, cn.value))
 		}
-		sum += te
 	}
+	fh.WriteString("}\n")
 
-	n.totalError = sum
-	return nil
+	log.Println(`network written to net.dot`)
 }
-
-const numEpochs = 5
-const splitAdd = 10
 
 func main() {
-	samples := []Sample{
-		Sample{[]float64{-1, -1}, []float64{-1}},
-		Sample{[]float64{-1, 1}, []float64{1}},
-		Sample{[]float64{1, -1}, []float64{1}},
-		Sample{[]float64{1, 1}, []float64{-1}},
-	}
+	log.Println(`here we go`)
 
-	networks := []*Network{}
-	for idx := 0; idx < 10; idx++ {
-		net := NewNetwork()
-		if rand.Intn(splitAdd) == 0 {
-			net.addRandomEdge()
-		} else {
-			net.splitRandomEdge()
-		}
-		networks = append(networks, &net)
-	}
+	net := NewNetwork(2, 1)
 
-	for epoch := 0; epoch < numEpochs; epoch++ {
-		for _, net := range networks {
-			err := net.updateTotalError(samples, 1.0)
-			if err != nil {
-				log.Fatalln(`can't get total error:`, err)
-			}
-		}
+	log.Println(`network:`, net)
 
-		sort.Slice(networks, func(i, j int) bool {
-			return networks[i].totalError < networks[j].totalError
-		})
+	net.feed([]float64{1, 0})
+	log.Println(`network output:`, net.getOutput())
 
-		/* Cut off lower half of population */
-		networks = networks[:len(networks)/2]
+	net.splitRandomEdge()
+	net.addRandomEdge()
+	net.splitRandomEdge()
+	net.addRandomEdge()
+	net.splitRandomEdge()
+	net.addRandomEdge()
+	net.splitRandomEdge()
 
-		/* Clone and mutate upper half of population */
-		clones := []*Network{}
-		for _, net := range networks {
-			clone := net.Clone()
-			if rand.Intn(splitAdd) == 0 {
-				net.addRandomEdge()
-			} else {
-				net.splitRandomEdge()
-			}
-			clones = append(clones, &clone)
-		}
-		networks = append(networks, clones...)
-	}
+	net.dumpDot()
 
-	log.Println(`errors after`, numEpochs, `epochs:`)
-	for _, net := range networks {
-		if err := net.updateTotalError(samples, 1.0); err != nil {
-			log.Fatalln(`can't update total error`, err)
-		}
-	}
-	sort.Slice(networks, func(i, j int) bool {
-		return networks[i].totalError < networks[j].totalError
-	})
-	for idx, net := range networks {
-		log.Println(idx, `->`, net.totalError)
-	}
-
-	log.Println(`output of best network:`)
-	for _, sample := range samples {
-		outputs, err := networks[0].feed(sample.inputs, 1.0)
-		if err != nil {
-			log.Fatalln(`can't get output from network:`, err)
-		}
-		log.Println(`in:`, sample.inputs, `out:`, outputs, `target:`, sample.targets)
-	}
+	net.feed([]float64{1, 0})
+	log.Println(`network output:`, net.getOutput())
 }
