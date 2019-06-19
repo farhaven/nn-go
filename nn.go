@@ -8,6 +8,20 @@ import (
 	"time"
 )
 
+func MaxIdx(values []float64) int {
+	maxSeen := math.Inf(-1)
+	maxIdx := 0
+
+	for idx, val := range values {
+		if val > maxSeen {
+			maxSeen = val
+			maxIdx = idx
+		}
+	}
+
+	return maxIdx
+}
+
 func main() {
 	rand.Seed(time.Now().Unix())
 	log.Println(`here we go`)
@@ -34,8 +48,15 @@ func main() {
 	}
 
 	log.Println(`output of best network:`)
+	errors := 0
 	for _, s := range samples {
 		networks[0].feed(s.inputs)
-		log.Println(`in:`, s.inputs, `out:`, networks[0].getOutput(), `target:`, s.targets)
+		output := MaxIdx(networks[0].getOutput())
+		target := MaxIdx(s.targets)
+		if output != target {
+			errors += 1
+		}
+		log.Println(`out:`, output, `target:`, target)
 	}
+	log.Println(errors, `errors out of`, len(samples), `tests ->`, float64(errors) / float64(len(samples)), `error rate`)
 }
