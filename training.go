@@ -11,8 +11,9 @@ const numEpochs = 1000
 const epochSlice = 20 // Number of survivors for each epoch
 
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
-	validationSamples := samples[:10000]
-	trainingSamples := samples[10000:]
+	valSize := int(float64(len(samples)) * 0.1) /* keep 10% as validation samples */
+	validationSamples := samples[:valSize]
+	trainingSamples := samples[valSize:]
 
 	workerChan := make(chan *Network)
 	workerWg := sync.WaitGroup{}
