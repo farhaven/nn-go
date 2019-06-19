@@ -12,7 +12,7 @@ type Network struct {
 	nodes      []Node
 	numInputs  int
 	numOutputs int
-	totalError float64
+	averageError float64
 }
 
 func NewNetwork(numInputs, numOutputs int) *Network {
@@ -325,13 +325,13 @@ func (n *Network) sampleError(s Sample) float64 {
 }
 
 func (n *Network) updateTotalError(samples []Sample) {
-	totalError := float64(0)
+	averageError := float64(0)
 
 	for _, s := range samples {
-		totalError += n.sampleError(s)
+		averageError += n.sampleError(s)
 	}
 
-	n.totalError = totalError
+	n.averageError = averageError / float64(len(samples) + 1)
 }
 
 const cutoff = 0.125
@@ -344,7 +344,7 @@ func (n *Network) performance() float64 {
 		numEdges += len(node.inputs)
 	}
 
-	dist := math.Pow((1-cutoff)*float64(n.totalError), 2) + math.Pow(cutoff*float64(numEdges), 2)
+	dist := math.Pow((1-cutoff)*float64(n.averageError), 2) + math.Pow(cutoff*float64(numEdges), 2)
 
 	return 1 / (dist + 1)
 }
