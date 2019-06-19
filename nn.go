@@ -5,6 +5,8 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -22,17 +24,50 @@ func MaxIdx(values []float64) int {
 	return maxIdx
 }
 
+func profTask() {
+	proffd, err := os.Create("cpuprofile.pprof")
+	if err != nil {
+		log.Fatalln(`can't create CPU profile:`, err)
+	}
+
+	pprof.StartCPUProfile(proffd)
+	log.Println(`started profiling`)
+	defer func() {
+		pprof.StopCPUProfile()
+		log.Println(`stopped profiling`)
+	}()
+
+	select {
+	case <-time.After(120 * time.Second):
+		log.Println(`profile timer expired`)
+	}
+}
+
 func main() {
 	rand.Seed(time.Now().Unix())
 
+	networks := []*Network{}
+
 	samples := ReadMnist(`train`)
 
-	networks := []*Network{}
 	for idx := 0; idx < epochSlice*2; idx++ {
 		networks = append(networks, NewNetwork(28*28, 10))
 	}
+	/*
+		samples := []Sample{
+			Sample{inputs: []float64{-1, -1}, targets: []float64{-1}},
+			Sample{inputs: []float64{-1, 1}, targets: []float64{1}},
+			Sample{inputs: []float64{1, -1}, targets: []float64{1}},
+			Sample{inputs: []float64{1, 1}, targets: []float64{-1}},
+		}
+		for idx := 0; idx < epochSlice*2; idx++ {
+			networks = append(networks, NewNetwork(2, 1))
+		}
+	*/
 
 	log.Println(`training data loaded, starting training`)
+
+	go profTask()
 
 	networks = trainNetworks(networks, samples)
 
