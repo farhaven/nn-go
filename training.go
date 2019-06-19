@@ -3,17 +3,41 @@ package main
 import (
 	"log"
 	"sort"
+	"sync"
 )
 
+const numParallel = 5
 const numEpochs = 1000
 const epochSlice = 50 // Number of survivors for each epoch
 
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
+	validationSamples := samples[:10000]
+	trainingSamples := samples[10000:]
+
+	workerChan := make(chan *Network)
+	workerWg := sync.WaitGroup{}
+
+	for idx := 0; idx < numParallel; idx++ {
+		go func(idx int) {
+			loIdx := (len(trainingSamples) / numParallel) * idx
+			hiIdx := (len(trainingSamples) / numParallel) * (idx + 1)
+			if hiIdx > len(trainingSamples) {
+				hiIdx = len(trainingSamples)
+			}
+			for net := range workerChan {
+				net.updateTotalError(trainingSamples[loIdx:hiIdx])
+				workerWg.Done()
+			}
+		}(idx)
+	}
+
 trainingLoop:
 	for epoch := 0; epoch < numEpochs; epoch++ {
 		for _, net := range networks {
-			net.updateTotalError(samples)
+			workerWg.Add(1)
+			workerChan <- net
 		}
+		workerWg.Wait()
 
 		sort.Slice(networks, func(i, j int) bool {
 			return networks[i].performance() > networks[j].performance()
@@ -32,12 +56,23 @@ trainingLoop:
 			}
 			networks = append(networks, newNetworks...)
 
-			if epoch%10 == 0 {
-				bestPerf := networks[0].performance()
-				log.Println(`epoch`, epoch, `best performance`, bestPerf)
-				if bestPerf == 1 && epoch > 0 {
-					break trainingLoop
+			bestPerf := networks[0].performance()
+			bestError := networks[0].averageError
+			log.Println(`epoch`, epoch, `best performance`, bestPerf, `best error`, bestError)
+			if bestPerf == 1 && epoch > 0 {
+				break trainingLoop
+			}
+			if epoch % 10 == 0 {
+				errors := 0
+				for _, s := range validationSamples {
+					networks[0].feed(s.inputs)
+					output := MaxIdx(networks[0].getOutput())
+					target := MaxIdx(s.targets)
+					if output != target {
+						errors += 1
+					}
 				}
+				log.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors) / float64(len(validationSamples)), `error rate`)
 			}
 
 			/* Cull duplicates */
@@ -64,6 +99,8 @@ trainingLoop:
 	sort.Slice(networks, func(i, j int) bool {
 		return networks[i].performance() > networks[j].performance()
 	})
+
+	close(workerChan)
 
 	return networks
 }
