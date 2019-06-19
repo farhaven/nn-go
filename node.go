@@ -99,7 +99,7 @@ func (g Gauss) Apply(n float64) float64 {
 
 	r := (1.0 / (sigma * math.Sqrt(2*math.Pi))) * math.Exp(-math.Pow(z-mu, 2)/(2*math.Pow(sigma, 2)))
 
-	return n * r
+	return n + r
 }
 
 func (g Gauss) Id() int {
