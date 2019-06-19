@@ -86,5 +86,5 @@ func main() {
 		}
 		log.Println(`out:`, output, `target:`, target)
 	}
-	log.Println(errors, `errors out of`, len(samples), `tests ->`, float64(errors) / float64(len(samples)), `error rate`)
+	log.Println(errors, `errors out of`, len(samples), `tests ->`, float64(errors)/float64(len(samples)), `error rate`)
 }
