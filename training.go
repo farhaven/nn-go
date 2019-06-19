@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"sort"
 	"sync"
 )
@@ -11,6 +12,8 @@ const numEpochs = 10000
 const epochSlice = 75 // Number of survivors for each epoch
 
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
+	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
+
 	valSize := int(float64(len(samples)) * 0.1) /* keep 10% as validation samples */
 	validationSamples := samples[:valSize]
 	trainingSamples := samples[valSize:]
@@ -55,11 +58,11 @@ trainingLoop:
 
 			bestPerf := networks[0].performance()
 			bestError := networks[0].averageError
-			log.Println(`epoch`, epoch, `best performance`, bestPerf, `best error`, bestError)
+			logger.Println(`epoch`, epoch, `best performance`, bestPerf, `best error`, bestError)
 			if bestPerf == 1 && epoch > 0 {
 				break trainingLoop
 			}
-			if epoch % 10 == 0 {
+			if epoch%10 == 0 {
 				errors := 0
 				for _, s := range validationSamples {
 					networks[0].feed(s.inputs)
@@ -69,7 +72,7 @@ trainingLoop:
 						errors += 1
 					}
 				}
-				log.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors) / float64(len(validationSamples)), `error rate`)
+				logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
 			}
 
 			/* Cull duplicates */

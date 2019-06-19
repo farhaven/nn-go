@@ -25,25 +25,28 @@ func MaxIdx(values []float64) int {
 }
 
 func profTask() {
+	logger := log.New(os.Stdout, `[PROF ] `, log.LstdFlags)
 	proffd, err := os.Create("cpuprofile.pprof")
 	if err != nil {
-		log.Fatalln(`can't create CPU profile:`, err)
+		logger.Fatalln(`can't create CPU profile:`, err)
 	}
 
 	pprof.StartCPUProfile(proffd)
-	log.Println(`started profiling`)
+	logger.Println(`started profiling`)
 	defer func() {
 		pprof.StopCPUProfile()
-		log.Println(`stopped profiling`)
+		logger.Println(`stopped profiling`)
 	}()
 
 	select {
 	case <-time.After(120 * time.Second):
-		log.Println(`profile timer expired`)
+		logger.Println(`profile timer expired`)
 	}
 }
 
 func main() {
+	logger := log.New(os.Stdout, `[MAIN ] `, log.LstdFlags)
+
 	rand.Seed(time.Now().Unix())
 
 	networks := []*Network{}
@@ -65,7 +68,7 @@ func main() {
 		}
 	*/
 
-	log.Println(`training data loaded, starting training`)
+	logger.Println(`training data loaded, starting training`)
 
 	go profTask()
 
@@ -75,7 +78,7 @@ func main() {
 		net.dumpDot(fmt.Sprintf(`graphs/%03d.dot`, idx), samples)
 	}
 
-	log.Println(`output of best network:`)
+	logger.Println(`output of best network:`)
 	errors := 0
 	for _, s := range samples {
 		networks[0].feed(s.inputs)
@@ -84,7 +87,7 @@ func main() {
 		if output != target {
 			errors += 1
 		}
-		log.Println(`out:`, output, `target:`, target)
+		logger.Println(`out:`, output, `target:`, target)
 	}
-	log.Println(errors, `errors out of`, len(samples), `tests ->`, float64(errors)/float64(len(samples)), `error rate`)
+	logger.Println(errors, `errors out of`, len(samples), `tests ->`, float64(errors)/float64(len(samples)), `error rate`)
 }
