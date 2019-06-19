@@ -334,7 +334,8 @@ func (n *Network) updateTotalError(samples []Sample) {
 	n.averageError = averageError / float64(len(samples) + 1)
 }
 
-const cutoff = 0.125
+// const edgeWeight = 0.125
+const edgeWeight = 0.01
 
 func (n *Network) performance() float64 {
 	/* Count number of edges, discount total error for networks with low edge count */
@@ -344,7 +345,7 @@ func (n *Network) performance() float64 {
 		numEdges += len(node.inputs)
 	}
 
-	dist := math.Pow((1-cutoff)*float64(n.averageError), 2) + math.Pow(cutoff*float64(numEdges), 2)
+	dist := math.Pow((1-edgeWeight)*float64(n.averageError), 2) + math.Pow(edgeWeight*float64(numEdges), 2)
 
 	return 1 / (dist + 1)
 }
