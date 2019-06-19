@@ -258,8 +258,9 @@ func (n *Network) dumpDot(fname string, samples []Sample) {
 	}
 	fh.WriteString("}\n")
 
-	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d, Total Error: %f\";\n", n.performance(), edgeCount, n.totalError))
+	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d, Total Error: %f\";\n", n.performance(), edgeCount, n.averageError))
 	fh.WriteString("\tlabelloc=top;\n")
+	fh.WriteString(fmt.Sprintf("\t// Network structure: %s\n", n.structuralHash()))
 
 	evalData := ""
 
