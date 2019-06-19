@@ -24,22 +24,15 @@ func MaxIdx(values []float64) int {
 
 func main() {
 	rand.Seed(time.Now().Unix())
-	log.Println(`here we go`)
 
-	samples := []Sample{}
-	for idx := 0; idx < 30; idx++ {
-		in := float64(idx) * ((math.Pi * 2) / 30)
-		t1 := math.Cos(in)
-		t2 := math.Sin(in)
-		t3 := math.Tanh(in)
-
-		samples = append(samples, Sample{[]float64{in}, []float64{t1, t2, t3}})
-	}
+	samples := ReadMnist(`train`)
 
 	networks := []*Network{}
 	for idx := 0; idx < epochSlice*2; idx++ {
-		networks = append(networks, NewNetwork(1, 3))
+		networks = append(networks, NewNetwork(28*28, 10))
 	}
+
+	log.Println(`training data loaded, starting training`)
 
 	networks = trainNetworks(networks, samples)
 
