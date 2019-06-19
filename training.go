@@ -8,7 +8,7 @@ import (
 
 const numParallel = 5
 const numEpochs = 1000
-const epochSlice = 50 // Number of survivors for each epoch
+const epochSlice = 20 // Number of survivors for each epoch
 
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
 	validationSamples := samples[:10000]
