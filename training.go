@@ -20,13 +20,8 @@ func trainNetworks(networks []*Network, samples []Sample) []*Network {
 
 	for idx := 0; idx < numParallel; idx++ {
 		go func(idx int) {
-			loIdx := (len(trainingSamples) / numParallel) * idx
-			hiIdx := (len(trainingSamples) / numParallel) * (idx + 1)
-			if hiIdx > len(trainingSamples) {
-				hiIdx = len(trainingSamples)
-			}
 			for net := range workerChan {
-				net.updateTotalError(trainingSamples[loIdx:hiIdx])
+				net.updateTotalError(trainingSamples)
 				workerWg.Done()
 			}
 		}(idx)
