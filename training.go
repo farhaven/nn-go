@@ -6,9 +6,9 @@ import (
 	"sync"
 )
 
-const numParallel = 5
-const numEpochs = 1000
-const epochSlice = 20 // Number of survivors for each epoch
+const numParallel = 22
+const numEpochs = 10000
+const epochSlice = 75 // Number of survivors for each epoch
 
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
 	valSize := int(float64(len(samples)) * 0.1) /* keep 10% as validation samples */
