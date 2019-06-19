@@ -146,7 +146,7 @@ func (s *SumNode) clone() Node {
 
 func (s *SumNode) graphViz() string {
 	label := fmt.Sprintf("%f", s.value)
-	style := "fontname=\"Ubuntu Mono\""
+	style := ", fontname=\"Ubuntu Mono\""
 
 	if s.op == (Invert{}) {
 		style += ", style=filled, fillcolor=red"
