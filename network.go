@@ -349,8 +349,8 @@ func (n *Network) performance() float64 {
 	return 1 / (dist + 1)
 }
 
-func (n *Network) mutate() {
-	mutationCount := rand.Intn(3)
+func (n *Network) mutate(mutCount int) {
+	mutationCount := rand.Intn(mutCount)
 	for idx := 0; idx < mutationCount; idx++ {
 		switch rand.Intn(10) {
 		case 0, 1:

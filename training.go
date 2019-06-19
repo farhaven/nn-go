@@ -51,7 +51,8 @@ trainingLoop:
 			newNetworks := []*Network{}
 			for _, net := range networks {
 				clone := net.Clone()
-				clone.mutate()
+				clone.mutate(10)
+				net.mutate(2)
 				newNetworks = append(newNetworks, clone)
 			}
 			networks = append(networks, newNetworks...)
