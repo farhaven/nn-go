@@ -38,16 +38,14 @@ func trainNetwork(network *Network, samples []Sample) {
 
 		logger.Println(`epoch`, epoch, `done. average error: `, network.averageError)
 
-		if epoch%10 == 0 {
-			errors := 0
-			for _, s := range validationSamples {
-				output := MaxIdx(network.feed(s.inputs, nil))
-				target := MaxIdx(s.targets)
-				if output != target {
-					errors += 1
-				}
+		errors := 0
+		for _, s := range validationSamples {
+			output := MaxIdx(network.feed(s.inputs, nil))
+			target := MaxIdx(s.targets)
+			if output != target {
+				errors += 1
 			}
-			logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
 		}
+		logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
 	}
 }
