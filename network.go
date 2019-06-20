@@ -75,9 +75,10 @@ type Sample struct {
 }
 
 const numConcurrency = 2
+const numInnerConcurrency = 10
 const numCandidates = 10 /* Number of mutations to evaluate */
 
-func (n *Network) train(sample Sample) {
+func (n *Network) train(samples []Sample) {
 	type Candidate struct {
 		deltas []*mat.Dense
 		error  float64
@@ -104,26 +105,62 @@ func (n *Network) train(sample Sample) {
 		})
 	}
 
-	var wg sync.WaitGroup
-	workChan := make(chan *Candidate)
-
 	/* Evaluate all candidates */
+	/* For all Candidates:
+	       For all samples:
+			     Gather sample error
+				  Send up
+			 Gather all sample errors
+			 Update candidate.error
+	*/
+
+	var candidateWg sync.WaitGroup
+	candidateChan := make(chan *Candidate, numConcurrency)
+
 	for idx := 0; idx < numConcurrency; idx++ {
 		go func() {
-			for c := range workChan {
-				outputs := n.feed(sample.inputs, c.deltas)
-				c.error = n.error(sample.targets, outputs)
-				wg.Done()
+			for candidate := range candidateChan {
+				var sampleWg sync.WaitGroup
+				sampleChan := make(chan *Sample, numInnerConcurrency)
+				errorChan := make(chan float64, numInnerConcurrency)
+
+				for sIdx := 0; sIdx < numInnerConcurrency; sIdx++ {
+					go func() {
+						for sample := range sampleChan {
+							output := n.feed(sample.inputs, candidate.deltas)
+							errorChan <- n.error(sample.targets, output)
+							sampleWg.Done()
+						}
+					}()
+				}
+
+				go func() {
+					for _, sample := range samples {
+						sampleWg.Add(1)
+						sampleChan <- &sample
+					}
+					sampleWg.Wait()
+					close(sampleChan)
+					close(errorChan)
+				}()
+
+				sampleError := float64(0)
+				for e := range errorChan {
+					sampleError += e
+				}
+				candidate.error = sampleError / float64(len(samples))
+				candidateWg.Done()
 			}
 		}()
 	}
 
 	for _, c := range candidates {
-		wg.Add(1)
-		workChan <- c
+		candidateWg.Add(1)
+		candidateChan <- c
 	}
 
-	wg.Wait()
+	candidateWg.Wait()
+	close(candidateChan)
 
 	/* Sort candidates by lowest error first */
 	sort.Slice(candidates, func(i, j int) bool {

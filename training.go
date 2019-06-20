@@ -32,14 +32,9 @@ func trainNetwork(network *Network, samples []Sample) {
 	for epoch := 0; epoch < numEpochs; epoch++ {
 		logger.Println(`starting epoch`, epoch)
 
-		for idx, sample := range trainingSamples {
-			network.train(sample)
-			if idx % 100 == 0 {
-				logger.Println(`sample`, idx)
-			}
-		}
+		network.train(trainingSamples)
 
-		network.updateAverageError(samples)
+		network.updateAverageError(validationSamples)
 
 		logger.Println(`epoch`, epoch, `done. average error: `, network.averageError)
 
