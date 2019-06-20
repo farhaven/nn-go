@@ -1,309 +1,74 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"math"
 	"math/rand"
-	"os"
+	"sort"
+	"sync"
+	"time"
+
+	"gonum.org/v1/gonum/mat"
 )
 
 type Network struct {
-	nodes      []Node
-	numInputs  int
-	numOutputs int
+	layers       []*mat.Dense
 	averageError float64
 }
 
-func NewNetwork(numInputs, numOutputs int) *Network {
-	numInputs += 1 /* Add a bias node */
-	nodes := []Node{}
-	for idx := 0; idx < numInputs; idx++ {
-		nodes = append(nodes, &ConstantNode{1})
-	}
+/* Unbiased new network */
+func NewNetwork(layerSizes []int) *Network {
+	layers := []*mat.Dense{}
 
-	for idx := 0; idx < numOutputs; idx++ {
-		nodes = append(nodes, NewSumNode(nodes[:numInputs]))
+	for idx, numInputs := range layerSizes[:len(layerSizes)-1] {
+		numOutputs := layerSizes[idx+1]
+		layer := mat.NewDense(numInputs, numOutputs, nil)
+		for row := 0; row < numInputs; row++ {
+			for col := 0; col < numOutputs; col++ {
+				layer.Set(row, col, rand.NormFloat64())
+			}
+		}
+		layers = append(layers, layer)
 	}
 
 	return &Network{
-		nodes:      nodes,
-		numInputs:  numInputs,
-		numOutputs: numOutputs,
+		layers: layers,
 	}
 }
 
-func (n *Network) feed(inputs []float64) {
-	if len(inputs) != n.numInputs-1 {
-		panic(`invalid input length`)
-	}
+func (n *Network) feed(inputs []float64, deltas []*mat.Dense) []float64 {
+	output := mat.NewVecDense(len(inputs), inputs[:])
 
-	/* Set values for input layer */
-	for idx, input := range inputs {
-		node := n.nodes[idx].(*ConstantNode)
-		node.value = input
-	}
-
-	/* Iterate over remaining nodes and update node values */
-	for _, node := range n.nodes[n.numInputs:] {
-		node.updateValue()
-	}
-}
-
-/* Adds a random edge between two nodes. */
-func (n *Network) addRandomEdge() {
-	srcIdx := rand.Intn(len(n.nodes) - n.numOutputs)
-	dstIdx := 0
-	for {
-		dstIdx = rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
-		if srcIdx < dstIdx {
-			break
-		}
-	}
-
-	srcNode := n.nodes[srcIdx]
-	dstNode := n.nodes[dstIdx].(*SumNode)
-
-	for _, node := range dstNode.inputs {
-		if node == srcNode {
-			/* Edge already exists */
-			return
-		}
-	}
-
-	dstNode.inputs = append(dstNode.inputs, srcNode)
-}
-
-func (n *Network) changeRandomNodeType() {
-	nodeIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
-	node := n.nodes[nodeIdx].(*SumNode)
-	node.op = RandomOperation()
-}
-
-func (n *Network) removeRandomEdge() {
-	dstIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
-	dstNode := n.nodes[dstIdx].(*SumNode)
-
-	srcIdx := rand.Intn(len(dstNode.inputs))
-
-	newInputs := dstNode.inputs[:srcIdx]
-	newInputs = append(newInputs, dstNode.inputs[srcIdx+1:]...)
-}
-
-/* Splits a random edge between two nodes. */
-func (n *Network) splitRandomEdge() {
-	dstIdx := rand.Intn(len(n.nodes)-n.numInputs) + n.numInputs
-	dstNode := n.nodes[dstIdx].(*SumNode)
-
-	srcNode := dstNode.inputs[rand.Intn(len(dstNode.inputs))]
-	srcIdx := -1
-	for idx, node := range n.nodes[:dstIdx] {
-		if node == srcNode {
-			srcIdx = idx
-			break
-		}
-	}
-	if srcIdx == -1 {
-		panic(`can't find index for source node`)
-	}
-
-	/* Create new middle node */
-	middleNode := NewSumNode([]Node{srcNode})
-
-	/* Replace src with middle node in dst's input list */
-	newInputs := []Node{}
-	for _, input := range dstNode.inputs {
-		if input != srcNode {
-			newInputs = append(newInputs, input)
-		}
-	}
-	newInputs = append(newInputs, middleNode)
-	dstNode.inputs = newInputs
-
-	middleIdx := srcIdx + 1
-	if srcIdx < n.numInputs {
-		middleIdx = n.numInputs
-	}
-	n.nodes = append(n.nodes, nil)
-	copy(n.nodes[middleIdx+1:], n.nodes[middleIdx:])
-	n.nodes[middleIdx] = middleNode
-}
-
-func (n *Network) dedupEdges() {
-	for _, node := range n.nodes[n.numInputs:] {
-		node := node.(*SumNode)
-		inputs := make(map[Node]bool)
-		for _, input := range node.inputs {
-			inputs[input] = true
-		}
-		newInputs := []Node{}
-		for input, _ := range inputs {
-			newInputs = append(newInputs, input)
-		}
-		node.inputs = newInputs
-	}
-}
-
-func (n *Network) removeDeadEnds() {
-	/* Dead ends are nodes that are not outputs or inputs and which are not inputs to any other node */
-
-	changed := true
-	for changed {
-		changed = false
-
-		usedAsInput := make(map[Node]bool)
-		for _, node := range n.nodes[n.numInputs:] {
-			node := node.(*SumNode)
-			for _, input := range node.inputs {
-				usedAsInput[input] = true
-			}
+	for lidx, layer := range n.layers {
+		if deltas != nil {
+			var tempLayer mat.Dense
+			tempLayer.Add(layer, deltas[lidx])
+			layer = &tempLayer
 		}
 
-		removeIndices := []int{}
-		for idx, node := range n.nodes[n.numInputs : len(n.nodes)-n.numOutputs] {
-			idx += n.numInputs
-			if !usedAsInput[node] {
-				removeIndices = append(removeIndices, idx)
-			}
-		}
+		_, numOutputs := layer.Dims()
 
-		for idx := len(removeIndices) - 1; idx >= 0; idx-- {
-			n.nodes = append(n.nodes[:removeIndices[idx]], n.nodes[removeIndices[idx]+1:]...)
-		}
-
-		if len(removeIndices) != 0 {
-			changed = true
-		}
+		res := mat.NewVecDense(numOutputs, nil)
+		res.MulVec(layer.T(), output)
+		output = res
 	}
-}
 
-func (n *Network) getOutput() []float64 {
-	res := []float64{}
+	res := make([]float64, len(inputs))
 
-	for _, node := range n.nodes[len(n.nodes)-n.numOutputs:] {
-		res = append(res, node.getValue())
+	for idx := 0; idx < output.Len(); idx++ {
+		res[idx] = output.At(idx, 0)
 	}
 
 	return res
 }
 
-func (n *Network) Clone() *Network {
-	clones := make(map[Node]Node)
+func (n *Network) error(targets, outputs []float64) float64 {
+	delta := float64(0)
 
-	for _, node := range n.nodes {
-		clones[node] = node.clone()
+	for idx, t := range targets {
+		delta += math.Pow(t-outputs[idx], 2)
 	}
 
-	newNodes := []Node{}
-	for _, node := range n.nodes {
-		clone := clones[node]
-
-		if sn, ok := clone.(*SumNode); ok {
-			/* Need to update inputs */
-			inputs := []Node{}
-			for _, input := range node.(*SumNode).inputs {
-				inputs = append(inputs, clones[input])
-			}
-			sn.inputs = inputs
-		}
-
-		newNodes = append(newNodes, clone)
-	}
-
-	return &Network{
-		nodes:      newNodes,
-		numInputs:  n.numInputs,
-		numOutputs: n.numOutputs,
-	}
-}
-
-func (n *Network) dumpDot(fname string, samples []Sample) {
-	fh, err := os.Create(fname)
-	if err != nil {
-		log.Fatalln(`can't create file:`, err)
-	}
-	defer fh.Close()
-
-	edgeCount := 0
-	for _, node := range n.nodes[n.numInputs:] {
-		node := node.(*SumNode)
-		edgeCount += len(node.inputs)
-	}
-
-	fh.WriteString("digraph {\n")
-	fh.WriteString("{ rank=same;\n")
-
-	for idx, node := range n.nodes[:n.numInputs] {
-		cn := node.(*ConstantNode)
-		label := fmt.Sprintf("%f", cn.value)
-		if idx == n.numInputs-1 {
-			label = "BIAS"
-		}
-		fh.WriteString(fmt.Sprintf("\t\"%p\" [fontname=\"Ubuntu Mono\", style=filled, fillcolor=green, label=\"%d: %s\"];\n", cn, idx, label))
-	}
-	fh.WriteString("}\n")
-
-	for idx, node := range n.nodes[n.numInputs:] {
-		idx += n.numInputs
-		node := node.(*SumNode)
-		fh.WriteString("\t" + node.graphViz())
-		for _, input := range node.inputs {
-			fh.WriteString(fmt.Sprintf("\t\"%p\" -> \"%p\";\n", input, node))
-		}
-	}
-
-	fh.WriteString("{ rank=same;\n")
-	for _, node := range n.nodes[len(n.nodes)-n.numOutputs:] {
-		fh.WriteString(fmt.Sprintf("\t\"%p\" [shape=doubleoctagon, style=\"rounded\"];\n", node))
-	}
-	fh.WriteString("}\n")
-
-	fh.WriteString(fmt.Sprintf("\tlabel=\"Perf: %f, Edges: %d, Total Error: %f\";\n", n.performance(), edgeCount, n.averageError))
-	fh.WriteString("\tlabelloc=top;\n")
-	fh.WriteString(fmt.Sprintf("\t// Network structure: %s\n", n.structuralHash()))
-
-	evalData := ""
-
-	for _, sample := range samples {
-		n.feed(sample.inputs)
-		inputs := ""
-		for _, val := range sample.inputs {
-			inputs += fmt.Sprintf("% 3.0f", val)
-		}
-		outputs := ""
-		for _, val := range n.getOutput() {
-			outputs += fmt.Sprintf("% 3.2f", val)
-		}
-		targets := ""
-		for _, val := range sample.targets {
-			targets += fmt.Sprintf("% 3.2f", val)
-		}
-
-		evalData += fmt.Sprintf("[%s] -> [%s] [%s]\\l", inputs, outputs, targets)
-	}
-
-	fh.WriteString(fmt.Sprintf("eval [fontname=\"Ubuntu Mono\", label=\"%s\", shape=box]\n", evalData))
-
-	fh.WriteString("}\n")
-}
-
-func (n *Network) structuralHash() string {
-	h := fmt.Sprintf("%d|%d|", n.numInputs, n.numOutputs)
-
-	nodeIdx := make(map[Node]int)
-
-	for idx, node := range n.nodes {
-		nodeIdx[node] = idx
-		if node, ok := node.(*SumNode); ok {
-			h += fmt.Sprintf("#%d|", node.op.Id())
-			for _, input := range node.inputs {
-				h += fmt.Sprintf("%d|", nodeIdx[input])
-			}
-			h += "#"
-		}
-	}
-
-	return h
+	return delta
 }
 
 type Sample struct {
@@ -311,57 +76,79 @@ type Sample struct {
 	targets []float64
 }
 
-func (n *Network) sampleError(s Sample) float64 {
-	delta := float64(0)
+const numConcurrency = 2
+const numCandidates = 10 /* Number of mutations to evaluate */
 
-	n.feed(s.inputs)
-	outputs := n.getOutput()
+func (n *Network) train(sample Sample) {
+	type Candidate struct {
+		deltas []*mat.Dense
+		error  float64
+	}
+	candidates := []*Candidate{}
 
-	for idx, output := range outputs {
-		delta += math.Pow(output-s.targets[idx], 2)
+	randSrc := rand.New(rand.NewSource(time.Now().Unix()))
+
+	/* Generate a gaussian delta matrix for each candidate and each layer */
+	for c := 0; c < numCandidates; c++ {
+		deltas := []*mat.Dense{}
+		for _, layer := range n.layers {
+			rows, cols := layer.Dims()
+			delta := mat.NewDense(rows, cols, nil)
+			for row := 0; row < rows; row++ {
+				for col := 0; col < cols; col++ {
+					delta.Set(row, col, randSrc.NormFloat64())
+				}
+			}
+			deltas = append(deltas, delta)
+		}
+		candidates = append(candidates, &Candidate{
+			deltas: deltas,
+		})
 	}
 
-	return delta
+	var wg sync.WaitGroup
+	workChan := make(chan *Candidate)
+
+	/* Evaluate all candidates */
+	for idx := 0; idx < numConcurrency; idx++ {
+		go func() {
+			for c := range workChan {
+				outputs := n.feed(sample.inputs, c.deltas)
+				c.error = n.error(sample.targets, outputs)
+				wg.Done()
+			}
+		}()
+	}
+
+	for _, c := range candidates {
+		wg.Add(1)
+		workChan <- c
+	}
+
+	wg.Wait()
+
+	/* Sort candidates by lowest error first */
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].error < candidates[j].error
+	})
+
+	/* Update network with candidate that produced the lowest error */
+	for idx, delta := range candidates[0].deltas {
+		n.layers[idx].Add(n.layers[idx], delta)
+	}
 }
 
-func (n *Network) updateTotalError(samples []Sample) {
+func (n *Network) sampleError(s Sample) float64 {
+	outputs := n.feed(s.inputs, nil)
+	return n.error(s.targets, outputs)
+}
+
+func (n *Network) updateAverageError(samples []Sample) {
 	averageError := float64(0)
 
 	for _, s := range samples {
 		averageError += n.sampleError(s)
 	}
 
-	n.averageError = averageError / float64(len(samples) + 1)
-}
-
-// const edgeWeight = 0.125
-const edgeWeight = 0
-
-func (n *Network) performance() float64 {
-	/* Count number of edges, discount total error for networks with low edge count */
-	numEdges := 0
-	for _, node := range n.nodes[n.numInputs:] {
-		node := node.(*SumNode)
-		numEdges += len(node.inputs)
-	}
-
-	dist := math.Pow((1-edgeWeight)*float64(n.averageError), 2) + math.Pow(edgeWeight*float64(numEdges), 2)
-
-	return 1 / (dist + 1)
-}
-
-func (n *Network) mutate(mutCount int) {
-	mutationCount := rand.Intn(mutCount)
-	for idx := 0; idx < mutationCount; idx++ {
-		switch rand.Intn(10) {
-		case 0, 1:
-			n.changeRandomNodeType()
-		case 2, 3:
-			n.removeRandomEdge()
-		case 4, 5, 6:
-			n.addRandomEdge()
-		case 7, 8, 9:
-			n.splitRandomEdge()
-		}
-	}
+	n.averageError = averageError / float64(len(samples)+1)
 }
