@@ -21,9 +21,9 @@ func NewNetwork(layerSizes []int) *Network {
 
 	for idx, numInputs := range layerSizes[:len(layerSizes)-1] {
 		numOutputs := layerSizes[idx+1]
-		layer := mat.NewDense(numInputs, numOutputs, nil)
-		for row := 0; row < numInputs; row++ {
-			for col := 0; col < numOutputs; col++ {
+		layer := mat.NewDense(numOutputs, numInputs, nil)
+		for row := 0; row < numOutputs; row++ {
+			for col := 0; col < numInputs; col++ {
 				layer.Set(row, col, rand.NormFloat64())
 			}
 		}
@@ -45,11 +45,9 @@ func (n *Network) feed(inputs []float64, deltas []*mat.Dense) []float64 {
 			layer = &tempLayer
 		}
 
-		_, numOutputs := layer.Dims()
-
-		res := mat.NewVecDense(numOutputs, nil)
-		res.MulVec(layer.T(), output)
-		output = res
+		var res mat.VecDense
+		res.MulVec(layer, output)
+		output = &res
 	}
 
 	res := make([]float64, len(inputs))
