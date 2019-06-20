@@ -35,6 +35,15 @@ func NewNetwork(layerSizes []int) *Network {
 	}
 }
 
+/* This is a leaky RELU */
+func (n *Network) nonlinearity(x float64) float64 {
+	if x < 0 {
+		return -0.01 * math.Exp(-x)
+	}
+
+	return x
+}
+
 func (n *Network) feed(inputs []float64, deltas []*mat.Dense) []float64 {
 	output := mat.NewVecDense(len(inputs), inputs[:])
 
@@ -48,6 +57,12 @@ func (n *Network) feed(inputs []float64, deltas []*mat.Dense) []float64 {
 		var res mat.VecDense
 		res.MulVec(layer, output)
 		output = &res
+
+		/* Apply nonlinearity */
+		rows, _ := output.Dims()
+		for row := 0; row < rows; row++ {
+			output.SetVec(row, n.nonlinearity(output.AtVec(row)))
+		}
 	}
 
 	res := make([]float64, len(inputs))
