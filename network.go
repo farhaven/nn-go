@@ -335,7 +335,7 @@ func (n *Network) updateTotalError(samples []Sample) {
 }
 
 // const edgeWeight = 0.125
-const edgeWeight = 0.01
+const edgeWeight = 0
 
 func (n *Network) performance() float64 {
 	/* Count number of edges, discount total error for networks with low edge count */

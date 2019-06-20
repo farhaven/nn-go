@@ -7,9 +7,9 @@ import (
 	"sync"
 )
 
-const numParallel = 22
-const numEpochs = 10000
-const epochSlice = 75 // Number of survivors for each epoch
+const numParallel = 2
+const numEpochs = 10
+const epochSlice = 5 // Number of survivors for each epoch
 
 func trainNetworks(networks []*Network, samples []Sample) []*Network {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
@@ -32,6 +32,7 @@ func trainNetworks(networks []*Network, samples []Sample) []*Network {
 
 trainingLoop:
 	for epoch := 0; epoch < numEpochs; epoch++ {
+		logger.Println(`starting epoch`, epoch)
 		for _, net := range networks {
 			workerWg.Add(1)
 			workerChan <- net
@@ -51,39 +52,42 @@ trainingLoop:
 			for _, net := range networks {
 				clone := net.Clone()
 				clone.mutate(10)
-				net.mutate(1)
+				net.mutate(2)
 				newNetworks = append(newNetworks, clone)
 			}
 			networks = append(networks, newNetworks...)
 
-			bestPerf := networks[0].performance()
-			bestError := networks[0].averageError
-			logger.Println(`epoch`, epoch, `best performance`, bestPerf, `best error`, bestError)
-			if bestPerf == 1 && epoch > 0 {
-				break trainingLoop
-			}
-			if epoch%10 == 0 {
-				errors := 0
-				for _, s := range validationSamples {
-					networks[0].feed(s.inputs)
-					output := MaxIdx(networks[0].getOutput())
-					target := MaxIdx(s.targets)
-					if output != target {
-						errors += 1
-					}
-				}
-				logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
-			}
+		}
 
-			/* Cull duplicates */
-			structures := make(map[string]*Network)
-			for _, net := range networks {
-				structures[net.structuralHash()] = net
+		logger.Println(`epoch`, epoch, `done`)
+
+		bestPerf := networks[0].performance()
+		bestError := networks[0].averageError
+		logger.Println(`epoch`, epoch, `best performance`, bestPerf, `best error`, bestError)
+		if bestPerf == 1 && epoch > 0 {
+			break trainingLoop
+		}
+		if epoch%10 == 0 {
+			errors := 0
+			for _, s := range validationSamples {
+				networks[0].feed(s.inputs)
+				output := MaxIdx(networks[0].getOutput())
+				target := MaxIdx(s.targets)
+				if output != target {
+					errors += 1
+				}
 			}
-			networks = []*Network{}
-			for _, net := range structures {
-				networks = append(networks, net)
-			}
+			logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
+		}
+
+		/* Cull duplicates */
+		structures := make(map[string]*Network)
+		for _, net := range networks {
+			structures[net.structuralHash()] = net
+		}
+		networks = []*Network{}
+		for _, net := range structures {
+			networks = append(networks, net)
 		}
 
 		for _, net := range networks {
