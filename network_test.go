@@ -77,7 +77,7 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 		meanSquaredError /= float64(len(samples))
 
-		// Report squared error
+		// Report squared error every 100 iterations
 		if iter % 100 == 0 {
 			log.Println(`iter`, iter, `MSE`, meanSquaredError)
 		}
