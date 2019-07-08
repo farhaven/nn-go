@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-const numEpochs = 10
+const numEpochs = 300
 
 func MaxIdx(values []float64) int {
 	maxSeen := math.Inf(-1)
@@ -25,27 +25,28 @@ func MaxIdx(values []float64) int {
 func trainNetwork(network *Network, samples []Sample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 
-	valSize := int(float64(len(samples)) * 0.1) /* keep 10% as validation samples */
+	/*
+	valSize := int(float64(len(samples)) * 0.1) // keep 10% as validation samples
 	validationSamples := samples[:valSize]
 	trainingSamples := samples[valSize:]
+	*/
+	validationSamples := samples
+	trainingSamples := samples
 
 	for epoch := 0; epoch < numEpochs; epoch++ {
 		logger.Println(`starting epoch`, epoch)
 
 		network.train(trainingSamples)
 
-		network.updateAverageError(validationSamples)
-
-		logger.Println(`epoch`, epoch, `done. average error: `, network.averageError)
-
 		errors := 0
 		for _, s := range validationSamples {
-			output := MaxIdx(network.feed(s.inputs, nil))
-			target := MaxIdx(s.targets)
-			if output != target {
+			output := network.forward(s.inputs)
+			target := s.targets
+			if output[0] != target[0] {
 				errors += 1
 			}
 		}
+
 		logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
 	}
 }
