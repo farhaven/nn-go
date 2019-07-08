@@ -98,8 +98,8 @@ func ReadMnist(prefix string) []Sample {
 		onehot[label] = 1.0
 
 		samples = append(samples, Sample{
-			inputs: img,
-			targets: onehot,
+			input: img,
+			target: onehot,
 		})
 	}
 

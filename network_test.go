@@ -94,4 +94,8 @@ func TestNetworkLearnXOR(t *testing.T) {
 		output := net.forward(input[:])
 		log.Println(`Input:`, input, `Target:`, target, `Output:`, output)
 	}
+
+	if iter > 800 {
+		t.Error(`took more than 800 iterations to learn XOR:`, iter)
+	}
 }

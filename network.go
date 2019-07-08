@@ -11,16 +11,17 @@ type Layer struct {
 	weights         *mat.Dense
 	delta           *mat.VecDense
 	output          *mat.VecDense
-	scratch *mat.Dense // Scratch buffer for weight updates
+	scratch         *mat.Dense // Scratch buffer for weight updates
 	activationPrime func(float64) float64
 	activation      func(float64) float64
 }
 
 func NewLayer(inputs, outputs int) Layer {
 	// Assumes tanh activation
-	// Initialize normally distributed random weights
+	// Initialize layer with random weights
 	weights := mat.NewDense(outputs, inputs, nil)
 	weights.Apply(func(i, j int, v float64) float64 {
+		// 	return rand.Float64()
 		return rand.NormFloat64()
 	}, weights)
 
@@ -28,7 +29,7 @@ func NewLayer(inputs, outputs int) Layer {
 		weights:    weights,
 		delta:      mat.NewVecDense(outputs, nil),
 		output:     mat.NewVecDense(outputs, nil),
-		scratch: mat.NewDense(outputs, inputs, nil),
+		scratch:    mat.NewDense(outputs, inputs, nil),
 		activation: math.Tanh,
 		activationPrime: func(x float64) float64 {
 			return 1 - math.Pow(x, 2.0)
@@ -130,10 +131,6 @@ func (n *Network) error(outputs, targets []float64) []float64 {
 }
 
 type Sample struct {
-	inputs  []float64
-	targets []float64
-}
-
-func (n *Network) train(samples []Sample) {
-	panic(`not implemented yet`)
+	input  []float64
+	target []float64
 }

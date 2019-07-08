@@ -22,31 +22,44 @@ func MaxIdx(values []float64) int {
 	return maxIdx
 }
 
-func trainNetwork(network *Network, samples []Sample) {
+func trainNetwork(net *Network, samples []Sample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 
-	/*
+	targetMSE := 0.005
+	learningRate := float64(0.1)
+
 	valSize := int(float64(len(samples)) * 0.1) // keep 10% as validation samples
 	validationSamples := samples[:valSize]
 	trainingSamples := samples[valSize:]
-	*/
-	validationSamples := samples
-	trainingSamples := samples
 
 	for epoch := 0; epoch < numEpochs; epoch++ {
-		logger.Println(`starting epoch`, epoch)
+		meanSquaredError := float64(0)
 
-		network.train(trainingSamples)
+		for _, s := range trainingSamples {
+			output := net.forward(s.input)
+			error := net.error(output, s.target)
+			net.backprop(s.input, error, learningRate)
+
+			for _, e := range error {
+				meanSquaredError += math.Pow(e, 2)
+			}
+		}
+
+		meanSquaredError /= float64(len(samples) + 1) * float64(len(samples[0].target))
 
 		errors := 0
 		for _, s := range validationSamples {
-			output := network.forward(s.inputs)
-			target := s.targets
-			if output[0] != target[0] {
+			output := net.forward(s.input)
+			label := MaxIdx(output)
+			if label != MaxIdx(s.target) {
 				errors += 1
 			}
 		}
 
-		logger.Println("\t", errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples)), `error rate`)
+		logger.Println(epoch, errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples) + 1), `error rate`, `mse`, meanSquaredError)
+
+		if meanSquaredError <= targetMSE {
+			logger.Println(`target mse reached after`, epoch, `training epochs`)
+		}
 	}
 }
