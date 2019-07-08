@@ -24,6 +24,9 @@ func MaxIdx(values []float64) int {
 
 func trainNetwork(net *Network, samples []Sample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
+	logger.Println(`attempting to load network layers from snapshot`)
+
+	net.restore(`mnist-network`)
 
 	targetMSE := 0.005
 	learningRate := float64(0.1)
@@ -57,6 +60,9 @@ func trainNetwork(net *Network, samples []Sample) {
 		}
 
 		logger.Println(epoch, errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples) + 1), `error rate`, `mse`, meanSquaredError)
+
+		// Make a snapshot of the network after each epoch
+		net.snapshot(`mnist-network`)
 
 		if meanSquaredError <= targetMSE {
 			logger.Println(`target mse reached after`, epoch, `training epochs`)

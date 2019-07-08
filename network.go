@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"math/rand"
+	"os"
 
 	"gonum.org/v1/gonum/mat"
 )
@@ -21,7 +24,6 @@ func NewLayer(inputs, outputs int) Layer {
 	// Initialize layer with random weights
 	weights := mat.NewDense(outputs, inputs, nil)
 	weights.Apply(func(i, j int, v float64) float64 {
-		// 	return rand.Float64()
 		return rand.NormFloat64()
 	}, weights)
 
@@ -35,6 +37,32 @@ func NewLayer(inputs, outputs int) Layer {
 			return 1 - math.Pow(x, 2.0)
 		},
 	}
+}
+
+func (l *Layer) snapshot(path string) {
+	fh, err := os.Create(path)
+	if err != nil {
+		log.Fatalf(`can't open snapshot file %s: %s`, path, err)
+	}
+	defer fh.Close()
+
+	l.weights.MarshalBinaryTo(fh)
+}
+
+func (l *Layer) restore(path string) {
+	fh, err := os.Open(path)
+	if err != nil {
+		log.Fatalf(`can't open snapshot file %s: %s`, path, err)
+	}
+	defer fh.Close()
+
+	var weights mat.Dense
+	n, err := weights.UnmarshalBinaryFrom(fh)
+	if err != nil {
+		log.Fatalf(`can't read snapshot from %s: %s`, path, err)
+	}
+	log.Println(`read`, n, `bytes of snapshot data from`, path)
+	l.weights = &weights
 }
 
 func (l *Layer) computeGradient(error *mat.VecDense) *mat.VecDense {
@@ -75,7 +103,6 @@ func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 
 type Network struct {
 	layers       []Layer
-	averageError float64
 }
 
 /* Unbiased new network */
@@ -90,6 +117,18 @@ func NewNetwork(layerSizes []int) *Network {
 
 	return &Network{
 		layers: layers,
+	}
+}
+
+func (n *Network) snapshot(prefix string) {
+	for idx, layer := range n.layers {
+		layer.snapshot(fmt.Sprintf(`%s-%d.layer`, prefix, idx))
+	}
+}
+
+func (n *Network) restore(prefix string) {
+	for idx, layer := range n.layers {
+		layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx))
 	}
 }
 
