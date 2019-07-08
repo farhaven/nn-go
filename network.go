@@ -11,6 +11,7 @@ type Layer struct {
 	weights         *mat.Dense
 	delta           *mat.VecDense
 	output          *mat.VecDense
+	scratch *mat.Dense // Scratch buffer for weight updates
 	activationPrime func(float64) float64
 	activation      func(float64) float64
 }
@@ -27,6 +28,7 @@ func NewLayer(inputs, outputs int) Layer {
 		weights:    weights,
 		delta:      mat.NewVecDense(outputs, nil),
 		output:     mat.NewVecDense(outputs, nil),
+		scratch: mat.NewDense(outputs, inputs, nil),
 		activation: math.Tanh,
 		activationPrime: func(x float64) float64 {
 			return 1 - math.Pow(x, 2.0)
@@ -66,10 +68,8 @@ func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 	alpha := learningRate
 
 	// Compute: Weights = alpha * Input^T * Delta + 1 * Weights
-	r, c := l.weights.Dims()
-	a := mat.NewDense(r, c, nil)
-	a.Outer(alpha, l.delta, inputs)
-	l.weights.Add(l.weights, a)
+	l.scratch.Outer(alpha, l.delta, inputs)
+	l.weights.Add(l.weights, l.scratch)
 }
 
 type Network struct {
