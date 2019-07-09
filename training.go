@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math"
+	"math/rand"
 	"os"
 )
 
@@ -29,26 +30,34 @@ func trainNetwork(net *Network, samples []Sample) {
 	net.restore(`mnist-network`)
 
 	targetMSE := 0.005
-	learningRate := float64(0.1)
+	learningRate := float64(0.01)
 
 	valSize := int(float64(len(samples)) * 0.1) // keep 10% as validation samples
 	validationSamples := samples[:valSize]
 	trainingSamples := samples[valSize:]
 
 	for epoch := 0; epoch < numEpochs; epoch++ {
-		meanSquaredError := float64(0)
+		meanMSE := float64(0)
 
-		for _, s := range trainingSamples {
+		// Randomize samples
+		idxes := rand.Perm(len(trainingSamples))
+		for _, idx := range idxes {
+			s := trainingSamples[idx]
 			output := net.forward(s.input)
 			error := net.error(output, s.target)
 			net.backprop(s.input, error, learningRate)
 
+			mse := float64(0)
 			for _, e := range error {
-				meanSquaredError += math.Pow(e, 2)
+				mse += math.Pow(e, 2)
 			}
+			if math.IsNaN(mse) {
+				panic(`NaN mse. Error too high? Check bounds of activation!`)
+			}
+			meanMSE += mse / float64(len(error) + 1)
 		}
 
-		meanSquaredError /= float64(len(samples) + 1) * float64(len(samples[0].target))
+		meanMSE /= float64(len(samples) + 1)
 
 		errors := 0
 		for _, s := range validationSamples {
@@ -58,13 +67,19 @@ func trainNetwork(net *Network, samples []Sample) {
 				errors += 1
 			}
 		}
+		errorRate := float64(errors) / float64(len(validationSamples)+1)
 
-		logger.Println(epoch, errors, `errors out of`, len(validationSamples), `tests ->`, float64(errors)/float64(len(validationSamples) + 1), `error rate`, `mse`, meanSquaredError)
+		logger.Println(epoch, errors, `errors out of`, len(validationSamples), `tests ->`, errorRate, `err%, mse`, meanMSE)
+
+		if epoch % 10 == 0 {
+			learningRate = learningRate * 0.9
+			logger.Println(`adjusted learning rate to`, learningRate)
+		}
 
 		// Make a snapshot of the network after each epoch
 		net.snapshot(`mnist-network`)
 
-		if meanSquaredError <= targetMSE {
+		if meanMSE <= targetMSE {
 			logger.Println(`target mse reached after`, epoch, `training epochs`)
 		}
 	}

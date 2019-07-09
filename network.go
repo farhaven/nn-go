@@ -10,17 +10,55 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+type Activation interface {
+	Forward(float64) float64
+	Backward(float64) float64
+}
+
+type TanhActivation struct{}
+
+func (t *TanhActivation) Forward(x float64) float64 {
+	return math.Tanh(x)
+}
+func (t *TanhActivation) Backward(x float64) float64 {
+	return 1 - math.Pow(x, 2.0)
+}
+
+type LeakyRELUActivation struct{
+	Leak float64
+}
+
+func (r *LeakyRELUActivation) Forward(x float64) float64 {
+	if x >= 0 {
+		return x
+	}
+	return x * r.Leak
+}
+func (r *LeakyRELUActivation) Backward(x float64) float64 {
+	if x < 0 {
+		return -r.Leak
+	}
+	return 1.0
+}
+
+type SigmoidActivation struct{}
+func (s *SigmoidActivation) Forward(x float64) float64 {
+	return 1.0 / (1.0 + math.Exp(-x))
+}
+func (s *SigmoidActivation) Backward(x float64) float64 {
+	f := s.Forward(x)
+	return f * (1.0 - f)
+}
+
 type Layer struct {
-	weights         *mat.Dense
-	delta           *mat.VecDense
-	output          *mat.VecDense
-	scratch         *mat.Dense // Scratch buffer for weight updates
-	activationPrime func(float64) float64
-	activation      func(float64) float64
+	weights    *mat.Dense
+	delta      *mat.VecDense
+	output     *mat.VecDense
+	scratch    *mat.Dense // Scratch buffer for weight updates
+	activation Activation
 }
 
 func NewLayer(inputs, outputs int) Layer {
-	// Assumes tanh activation
 	// Initialize layer with random weights
 	weights := mat.NewDense(outputs, inputs, nil)
 	weights.Apply(func(i, j int, v float64) float64 {
@@ -32,10 +70,7 @@ func NewLayer(inputs, outputs int) Layer {
 		delta:      mat.NewVecDense(outputs, nil),
 		output:     mat.NewVecDense(outputs, nil),
 		scratch:    mat.NewDense(outputs, inputs, nil),
-		activation: math.Tanh,
-		activationPrime: func(x float64) float64 {
-			return 1 - math.Pow(x, 2.0)
-		},
+		activation: &SigmoidActivation{},
 	}
 }
 
@@ -49,27 +84,29 @@ func (l *Layer) snapshot(path string) {
 	l.weights.MarshalBinaryTo(fh)
 }
 
-func (l *Layer) restore(path string) {
+func (l *Layer) restore(path string) error {
 	fh, err := os.Open(path)
 	if err != nil {
-		log.Fatalf(`can't open snapshot file %s: %s`, path, err)
+		return err
 	}
 	defer fh.Close()
 
 	var weights mat.Dense
 	n, err := weights.UnmarshalBinaryFrom(fh)
 	if err != nil {
-		log.Fatalf(`can't read snapshot from %s: %s`, path, err)
+		return err
 	}
 	log.Println(`read`, n, `bytes of snapshot data from`, path)
 	l.weights = &weights
+
+	return nil
 }
 
 func (l *Layer) computeGradient(error *mat.VecDense) *mat.VecDense {
 	for idx := 0; idx < error.Len(); idx++ {
 		// TODO: See if this can be unified
 		e := error.AtVec(idx)
-		l.delta.SetVec(idx, e*l.activationPrime(l.output.AtVec(idx)))
+		l.delta.SetVec(idx, e*l.activation.Backward(l.output.AtVec(idx)))
 	}
 
 	var res mat.Dense
@@ -84,10 +121,10 @@ func (l *Layer) computeGradient(error *mat.VecDense) *mat.VecDense {
 }
 
 func (l *Layer) forward(inputs *mat.VecDense) *mat.VecDense {
-	l.output.MulVec(l.weights, inputs) // TODO: Transpose?
+	l.output.MulVec(l.weights, inputs)
 
 	for idx := 0; idx < l.output.Len(); idx++ {
-		l.output.SetVec(idx, l.activation(l.output.AtVec(idx)))
+		l.output.SetVec(idx, l.activation.Forward(l.output.AtVec(idx)))
 	}
 
 	return l.output
@@ -102,7 +139,7 @@ func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 }
 
 type Network struct {
-	layers       []Layer
+	layers []Layer
 }
 
 /* Unbiased new network */
@@ -128,7 +165,10 @@ func (n *Network) snapshot(prefix string) {
 
 func (n *Network) restore(prefix string) {
 	for idx, layer := range n.layers {
-		layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx))
+		if err := layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
+			log.Printf(`can't restore layer %d: %s`, idx, err)
+			break
+		}
 	}
 }
 
