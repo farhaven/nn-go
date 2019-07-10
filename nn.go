@@ -36,7 +36,7 @@ func main() {
 	samples := ReadMnist(`train`)
 	logger.Println(`training data loaded, starting training`)
 
-	network := NewNetwork([]int{28 * 28, 60, 10})
+	network := NewNetwork([]int{28 * 28, 60, 10}, SigmoidActivation{})
 
 	/*
 	samples := []Sample{

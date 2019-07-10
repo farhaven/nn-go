@@ -12,13 +12,13 @@ func TestLayerComputeGradient(t *testing.T) {
 	input := mat.NewVecDense(3, []float64{-1, 0, 1})
 	error := mat.NewVecDense(2, []float64{0, 0.3})
 
-	layer := NewLayer(3, 2)
+	layer := NewLayer(3, 2, SigmoidActivation{})
 	layer.forward(input)
 	layer.computeGradient(error)
 }
 
 func TestNetworkBackprop(t *testing.T) {
-	net := NewNetwork([]int{2, 3, 1})
+	net := NewNetwork([]int{2, 3, 1}, SigmoidActivation{})
 
 	input := []float64{0, 1}
 	target := []float64{1}
@@ -47,7 +47,7 @@ func TestNetworkBackprop(t *testing.T) {
 }
 
 func TestNetworkLearnXOR(t *testing.T) {
-	net := NewNetwork([]int{2, 3, 1})
+	net := NewNetwork([]int{2, 3, 1}, LeakyRELUActivation{0.01})
 
 	samples := map[[2]float64][]float64 {
 		[2]float64{0, 0}: []float64{0},
