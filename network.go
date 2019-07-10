@@ -36,7 +36,7 @@ func (r *LeakyRELUActivation) Forward(x float64) float64 {
 }
 func (r *LeakyRELUActivation) Backward(x float64) float64 {
 	if x < 0 {
-		return -r.Leak
+		return r.Leak
 	}
 	return 1.0
 }
