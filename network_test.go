@@ -85,14 +85,64 @@ func TestNetworkLearnXOR(t *testing.T) {
 	if iter > 800 {
 		t.Error(`took more than 800 iterations to learn XOR:`, iter)
 	}
+}
 
-	// Eval each sample
-	for input, target := range samples {
-		output := net.forward(input[:])
-		log.Println(`Input:`, input, `Target:`, target, `Output:`, output)
+func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
+	net := NewNetwork([]int{2, 3, 1}, SigmoidActivation{})
+	output1 := net.forward([]float64{0, 1})
+
+	net.snapshot(`test-network`)
+
+	net.restore(`test-network`)
+
+	output2 := net.forward([]float64{0, 1})
+
+	if output1[0] != output2[0] {
+		t.Errorf(`output changed: expected %v, got %v`, output1, output2)
+	}
+}
+
+func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
+	net1 := NewNetwork([]int{1, 1}, SigmoidActivation{})
+	net2 := NewNetwork([]int{1, 1}, SigmoidActivation{})
+
+	net1.snapshot(`test-network`)
+	net2.restore(`test-network`)
+
+	log.Println(`net1`, net1.layers)
+	log.Println(`net2`, net2.layers)
+
+	log.Println(`n1l1`, net1.layers[0].weights)
+	log.Println(`n2l1`, net2.layers[0].weights)
+
+	if net1.layers[0].weights.At(0, 0) != net2.layers[0].weights.At(0, 0) {
+		t.Errorf(`Weight changed. Expected %f, got %f`, net1.layers[0].weights.At(0, 0), net2.layers[0].weights.At(0, 0))
 	}
 
-	if iter > 800 {
-		t.Error(`took more than 800 iterations to learn XOR:`, iter)
+	output1 := net1.forward([]float64{1})
+	output2 := net2.forward([]float64{1})
+
+	if output1[0] != output2[0] {
+		t.Errorf(`Output changed: expected %v, got %v`, output1, output2)
+	}
+}
+
+func TestLayerSnapshotAndRestoreNewLayer(t *testing.T) {
+	input := mat.NewVecDense(1, []float64{1})
+
+	layer1 := NewLayer(1, 1, SigmoidActivation{})
+	output1 := layer1.forward(input)
+	layer1.snapshot(`test-layer`)
+
+	layer2 := NewLayer(1, 1, SigmoidActivation{})
+	layer2.restore(`test-layer`)
+	output2 := layer2.forward(input)
+
+	if layer1.weights.At(0, 0) != layer2.weights.At(0, 0) {
+		t.Errorf(`Weights changed: expected %f, got %f`, layer1.weights.At(0, 0), layer2.weights.At(0, 0))
+	}
+
+	if output1.AtVec(0) != output2.AtVec(0) {
+		t.Errorf(`Output changed: expected %v, got %v`, output1, output2)
 	}
 }
