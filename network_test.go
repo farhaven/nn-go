@@ -58,10 +58,10 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 	targetMSE := 0.005
 	learningRate := 0.1
-	iter := 0
 
-	for {
-		iter += 1
+	var iter int
+
+	for iter = 0; iter < 1000; iter++ {
 		meanSquaredError := float64(0)
 
 		for input, target := range samples {
