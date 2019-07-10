@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math"
 	"testing"
 
@@ -107,13 +106,9 @@ func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 	net2 := NewNetwork([]int{1, 1}, SigmoidActivation{})
 
 	net1.snapshot(`test-network`)
-	net2.restore(`test-network`)
-
-	log.Println(`net1`, net1.layers)
-	log.Println(`net2`, net2.layers)
-
-	log.Println(`n1l1`, net1.layers[0].weights)
-	log.Println(`n2l1`, net2.layers[0].weights)
+	if err := net2.restore(`test-network`); err != nil {
+		t.Errorf(`can't restore network: %s`, err)
+	}
 
 	if net1.layers[0].weights.At(0, 0) != net2.layers[0].weights.At(0, 0) {
 		t.Errorf(`Weight changed. Expected %f, got %f`, net1.layers[0].weights.At(0, 0), net2.layers[0].weights.At(0, 0))

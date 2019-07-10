@@ -144,17 +144,17 @@ func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 }
 
 type Network struct {
-	layers []Layer
+	layers []*Layer
 }
 
 /* Unbiased new network */
 func NewNetwork(layerSizes []int, activation Activation) *Network {
-	layers := []Layer{}
+	layers := []*Layer{}
 
 	for idx, numInputs := range layerSizes[:len(layerSizes)-1] {
 		numOutputs := layerSizes[idx+1]
 		layer := NewLayer(numInputs, numOutputs, activation)
-		layers = append(layers, layer)
+		layers = append(layers, &layer)
 	}
 
 	return &Network{
