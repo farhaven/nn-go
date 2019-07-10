@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"os"
 
+	"github.com/pkg/errors"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -74,29 +74,33 @@ func NewLayer(inputs, outputs int, activation Activation) Layer {
 	}
 }
 
-func (l *Layer) snapshot(path string) {
+func (l *Layer) snapshot(path string) error {
 	fh, err := os.Create(path)
 	if err != nil {
-		log.Fatalf(`can't open snapshot file %s: %s`, path, err)
+		return errors.Wrap(err, fmt.Sprintf(`while creating snapshot %s`, path))
 	}
 	defer fh.Close()
 
-	l.weights.MarshalBinaryTo(fh)
+	_, err = l.weights.MarshalBinaryTo(fh)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf(`while unmarshaling snapshot %s`, path))
+	}
+
+	return nil
 }
 
 func (l *Layer) restore(path string) error {
 	fh, err := os.Open(path)
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf(`while reading snapshot %s`, path))
 	}
 	defer fh.Close()
 
 	var weights mat.Dense
-	n, err := weights.UnmarshalBinaryFrom(fh)
+	_, err = weights.UnmarshalBinaryFrom(fh)
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf(`while unmarshaling snapshot %s`, path))
 	}
-	log.Println(`read`, n, `bytes of snapshot data from`, path)
 	l.weights = &weights
 
 	return nil
@@ -157,19 +161,24 @@ func NewNetwork(layerSizes []int, activation Activation) *Network {
 	}
 }
 
-func (n *Network) snapshot(prefix string) {
+func (n *Network) snapshot(prefix string) error {
 	for idx, layer := range n.layers {
-		layer.snapshot(fmt.Sprintf(`%s-%d.layer`, prefix, idx))
-	}
-}
-
-func (n *Network) restore(prefix string) {
-	for idx, layer := range n.layers {
-		if err := layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
-			log.Printf(`can't restore layer %d: %s`, idx, err)
-			break
+		if err := layer.snapshot(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
+			return err
 		}
 	}
+
+	return nil
+}
+
+func (n *Network) restore(prefix string) error {
+	for idx, layer := range n.layers {
+		if err := layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (n *Network) forward(inputs []float64) []float64 {
