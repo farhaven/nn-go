@@ -77,17 +77,14 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 		meanSquaredError /= float64(len(samples))
 
-		// Report squared error every 100 iterations
-		if iter % 100 == 0 {
-			log.Println(`iter`, iter, `MSE`, meanSquaredError)
-		}
-
 		if meanSquaredError <= targetMSE {
 			break
 		}
 	}
 
-	log.Println(`reached target MSE`, targetMSE, `after`, iter, `iterations`)
+	if iter > 800 {
+		t.Error(`took more than 800 iterations to learn XOR:`, iter)
+	}
 
 	// Eval each sample
 	for input, target := range samples {
