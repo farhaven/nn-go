@@ -24,7 +24,7 @@ func (t TanhActivation) Backward(x float64) float64 {
 	return 1 - math.Pow(x, 2.0)
 }
 
-type LeakyRELUActivation struct{
+type LeakyRELUActivation struct {
 	Leak float64
 }
 
@@ -42,6 +42,7 @@ func (r LeakyRELUActivation) Backward(x float64) float64 {
 }
 
 type SigmoidActivation struct{}
+
 func (s SigmoidActivation) Forward(x float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-x))
 }
