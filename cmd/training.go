@@ -1,10 +1,12 @@
-package network
+package main
 
 import (
 	"log"
 	"math"
 	"math/rand"
 	"os"
+
+	network "github.com/farhaven/nn-go"
 )
 
 const numEpochs = 300
@@ -31,7 +33,7 @@ func indexProducer(maxIdx int, c chan int) {
 	}
 }
 
-func trainNetwork(net *Network, samples []mnistSample) {
+func trainNetwork(net *network.Network, samples []mnistSample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 	logger.Println(`attempting to load network layers from snapshot`)
 

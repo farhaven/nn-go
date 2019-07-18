@@ -1,4 +1,4 @@
-package network
+package main
 
 import (
 	"log"
@@ -6,6 +6,8 @@ import (
 	"os"
 	"runtime/pprof"
 	"time"
+
+	network "github.com/farhaven/nn-go"
 )
 
 func profTask() {
@@ -36,13 +38,13 @@ func main() {
 	samples := readMnist(`train`)
 	logger.Println(`training data loaded, starting training`)
 
-	config := []LayerConfiguration{
-		LayerConfiguration{28 * 28, nil},
-		LayerConfiguration{800, SigmoidActivation{}},
-		LayerConfiguration{40, SigmoidActivation{}},
-		LayerConfiguration{10, SigmoidActivation{}},
+	config := []network.LayerConfiguration{
+		network.LayerConfiguration{28 * 28, nil},
+		network.LayerConfiguration{800, network.SigmoidActivation{}},
+		network.LayerConfiguration{40, network.LeakyRELUActivation{Leak: 0.01, Cap: 1e10}},
+		network.LayerConfiguration{10, network.LeakyRELUActivation{Leak: 0.01, Cap: 1e10}},
 	}
-	network, err := NewNetwork(config)
+	network, err := network.NewNetwork(config)
 	if err != nil {
 		log.Fatalln(`can't create network:`, err)
 	}
