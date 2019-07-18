@@ -27,7 +27,7 @@ func trainNetwork(net *Network, samples []Sample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 	logger.Println(`attempting to load network layers from snapshot`)
 
-	net.restore(`mnist-network`)
+	net.Restore(`mnist-network`)
 
 	targetMSE := 0.005
 	learningRate := float64(0.01)
@@ -43,9 +43,9 @@ func trainNetwork(net *Network, samples []Sample) {
 		idxes := rand.Perm(len(trainingSamples))
 		for _, idx := range idxes {
 			s := trainingSamples[idx]
-			output := net.forward(s.input)
-			error := net.error(output, s.target)
-			net.backprop(s.input, error, learningRate)
+			output := net.Forward(s.input)
+			error := net.Error(output, s.target)
+			net.Backprop(s.input, error, learningRate)
 
 			mse := float64(0)
 			for _, e := range error {
@@ -61,7 +61,7 @@ func trainNetwork(net *Network, samples []Sample) {
 
 		errors := 0
 		for _, s := range validationSamples {
-			output := net.forward(s.input)
+			output := net.Forward(s.input)
 			label := MaxIdx(output)
 			if label != MaxIdx(s.target) {
 				errors += 1
@@ -77,7 +77,7 @@ func trainNetwork(net *Network, samples []Sample) {
 		}
 
 		// Make a snapshot of the network after each epoch
-		net.snapshot(`mnist-network`)
+		net.Snapshot(`mnist-network`)
 
 		if meanMSE <= targetMSE {
 			logger.Println(`target mse reached after`, epoch, `training epochs`)
