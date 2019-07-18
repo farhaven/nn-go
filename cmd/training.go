@@ -39,7 +39,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) {
 
 	net.Restore(`mnist-network`)
 
-	targetMSE := 0.005
+	targetMSE := 0.0005
 	learningRate := float64(0.01)
 
 	valSize := int(float64(len(samples)) * 0.1) // keep 10% as validation samples
