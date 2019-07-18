@@ -46,7 +46,7 @@ func TestNetworkBackprop(t *testing.T) {
 }
 
 func TestNetworkLearnXOR(t *testing.T) {
-	net := NewNetwork([]int{2, 3, 1}, LeakyRELUActivation{0.01})
+	net := NewNetwork([]int{2, 3, 1}, LeakyRELUActivation{Leak: 0.01})
 
 	samples := map[[2]float64][]float64{
 		[2]float64{0, 0}: []float64{0},
