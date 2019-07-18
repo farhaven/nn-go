@@ -39,22 +39,23 @@ func (e ELUActivation) Backward(x float64) float64 {
 
 // LeakyRELUActivation is a Leaky Rectified Linear Unit activation with activation cap.
 //
-// It computes min(x, Cap) if x > 0, otherwise it computes x * Leak
-//
-// If Cap is 0, the unit is uncapped.
+// If Cap is 0, the unit is uncapped. Otherwise, the output is clipped between -Cap and +Cap
 type LeakyRELUActivation struct {
 	Leak float64
 	Cap  float64
 }
 
 func (r LeakyRELUActivation) Forward(x float64) float64 {
-	if x >= 0 {
-		if r.Cap > 0 {
-			return math.Min(x, r.Cap)
-		}
-		return x
+	res := x
+	if x < 0 {
+		res *= r.Leak
 	}
-	return x * r.Leak
+
+	if r.Cap == 0 {
+		return res
+	}
+
+	return math.Max(-r.Cap, math.Min(r.Cap, res))
 }
 func (r LeakyRELUActivation) Backward(x float64) float64 {
 	if x < 0 {
