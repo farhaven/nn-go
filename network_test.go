@@ -79,6 +79,8 @@ func TestNetworkLearnXOR(t *testing.T) {
 		if meanSquaredError <= targetMSE {
 			break
 		}
+
+		t.Log(`iter`, iter, `mse`, meanSquaredError)
 	}
 
 	if iter > 800 {
