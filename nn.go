@@ -36,7 +36,16 @@ func main() {
 	samples := readMnist(`train`)
 	logger.Println(`training data loaded, starting training`)
 
-	network := NewNetwork([]int{28 * 28, 800, 40, 10}, SigmoidActivation{})
+	config := []LayerConfiguration{
+		LayerConfiguration{28 * 28, nil},
+		LayerConfiguration{800, SigmoidActivation{}},
+		LayerConfiguration{40, SigmoidActivation{}},
+		LayerConfiguration{10, SigmoidActivation{}},
+	}
+	network, err := NewNetwork(config)
+	if err != nil {
+		log.Fatalln(`can't create network:`, err)
+	}
 
 	/*
 	samples := []Sample{

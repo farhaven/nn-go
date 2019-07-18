@@ -6,42 +6,54 @@ functions.
 
 For example, the following code trains a simple 2x3x1 neural network the XOR function:
 
-	type Sample [2][]float64  // Input and output
-	samples := []Sample{
-		Sample{[]float64{0, 0}, []float64{0}},
-		Sample{[]float64{0, 1}, []float64{1}},
-		Sample{[]float64{1, 0}, []float64{1}},
-		Sample{[]float64{1, 1}, []float64{0}},
+	config := []network.LayerConfiguration{
+		network.LayerConfiguration{2, nil},
+		network.LayerConfiguration{3, network.LeakyRELUActivation{Leak: 0.01}},
+		network.LayerConfiguration{1, network.LeakyRELUActivation{Leak: 0.01}},
+	}
+	net, err := network.NewNetwork(config)
+	if err != nil {
+		log.Fatalln(`can't create network`, err)
 	}
 
-	learningRate := 0.75
-	targetMSE := 0.005  // Target mean squared error
+	// Training samples
+	samples := map[[2]float64][]float64{
+		[2]float64{0, 0}: []float64{0},
+		[2]float64{0, 1}: []float64{1},
+		[2]float64{1, 0}: []float64{1},
+		[2]float64{1, 1}: []float64{0},
+	}
 
-	net := network.NewNetwork([]int{2, 3, 1}, network.LeakyRELUActivation{Leak: 0.01})
+	targetMSE := 0.005  // Desired Mean Squared Error
+	learningRate := 0.1 // Learning rate for the network, larger is faster, smaller is more accurate
 
-	for iter := 0; ; iter++ {
+	var iter int
+
+	for iter = 0; iter < 1000; iter++ {
 		meanSquaredError := float64(0)
-		for _, s := range samples {
-			output := net.Forward(s[0])
-			error := net.Error(output, s[1])
-			net.Backprop(s[0], error, learningRate)
+
+		for input, target := range samples {
+			input := input[:]
+			output := net.Forward(input)
+			error := net.Error(output, target)
+			net.Backprop(input, error, learningRate)
 
 			for _, e := range error {
 				meanSquaredError += math.Pow(e, 2)
 			}
 		}
+
 		meanSquaredError /= float64(len(samples))
 
 		if meanSquaredError <= targetMSE {
 			break
 		}
-
-		log.Println(`Iter`, iter, `MSE`, meanSquaredError)
 	}
 
-	// Print out network output for each sample:
-	for i, s := range samples {
-		log.Printf(`Sample %d: %v -> %v`, i, s, net.Forward(s[0]))
+	log.Println(`Took`, iter, `iterations to reach target MSE`, targetMSE)
+
+	for input, target := range samples {
+		log.Println(`Input:`, input, `Target:`, target, `Output:`, net.Forward(input[:])
 	}
 */
 package network

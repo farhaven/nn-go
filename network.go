@@ -9,7 +9,7 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-type Layer struct {
+type layer struct {
 	weights    *mat.Dense
 	delta      *mat.VecDense
 	output     *mat.VecDense
@@ -17,14 +17,14 @@ type Layer struct {
 	activation Activation
 }
 
-func NewLayer(inputs, outputs int, activation Activation) Layer {
+func newLayer(inputs, outputs int, activation Activation) layer {
 	// Initialize layer with random weights
 	weights := mat.NewDense(outputs, inputs, nil)
 	weights.Apply(func(i, j int, v float64) float64 {
 		return rand.NormFloat64()
 	}, weights)
 
-	return Layer{
+	return layer{
 		weights:    weights,
 		delta:      mat.NewVecDense(outputs, nil),
 		output:     mat.NewVecDense(outputs, nil),
@@ -33,7 +33,7 @@ func NewLayer(inputs, outputs int, activation Activation) Layer {
 	}
 }
 
-func (l *Layer) snapshot(path string) error {
+func (l *layer) snapshot(path string) error {
 	fh, err := os.Create(path)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf(`while creating snapshot %s`, path))
@@ -48,7 +48,7 @@ func (l *Layer) snapshot(path string) error {
 	return nil
 }
 
-func (l *Layer) restore(path string) error {
+func (l *layer) restore(path string) error {
 	fh, err := os.Open(path)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf(`while reading snapshot %s`, path))
@@ -65,7 +65,7 @@ func (l *Layer) restore(path string) error {
 	return nil
 }
 
-func (l *Layer) computeGradient(error *mat.VecDense) *mat.VecDense {
+func (l *layer) computeGradient(error *mat.VecDense) *mat.VecDense {
 	for idx := 0; idx < error.Len(); idx++ {
 		// TODO: See if this can be unified
 		e := error.AtVec(idx)
@@ -83,7 +83,7 @@ func (l *Layer) computeGradient(error *mat.VecDense) *mat.VecDense {
 	return resVec
 }
 
-func (l *Layer) forward(inputs *mat.VecDense) *mat.VecDense {
+func (l *layer) forward(inputs *mat.VecDense) *mat.VecDense {
 	l.output.MulVec(l.weights, inputs)
 
 	for idx := 0; idx < l.output.Len(); idx++ {
@@ -93,7 +93,7 @@ func (l *Layer) forward(inputs *mat.VecDense) *mat.VecDense {
 	return l.output
 }
 
-func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
+func (l *layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 	alpha := learningRate
 
 	// Compute: Weights = alpha * Input^T * Delta + 1 * Weights
@@ -103,26 +103,45 @@ func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 
 // Network is structure that represents an unbiased neural network
 type Network struct {
-	layers []*Layer
+	layers []*layer
 }
 
-// NewNetwork creates a new neural network with the desired layer sizes and activation function.
-//
-// The following creates a fully connected 2x3x1 network with sigmoid activation:
-//
-//  net := network.NewNetwork([]int{2, 3, 1}, SigmoidActivation{})
-func NewNetwork(layerSizes []int, activation Activation) *Network {
-	layers := []*Layer{}
+// LayerConfiguration represents a configuration for one single layer in the network
+type LayerConfiguration struct {
+	NumNodes   int
+	Activation Activation
+}
 
-	for idx, numInputs := range layerSizes[:len(layerSizes)-1] {
-		numOutputs := layerSizes[idx+1]
-		layer := NewLayer(numInputs, numOutputs, activation)
+// NewNetwork creates a new neural network with the desired layer configurations.
+// The activation is ignored for the first layer and has to be set to nil.
+//
+// The following creates a fully connected 2x3x1 network with sigmoid activation between all layers:
+//
+//  config := []LayerConfiguration{
+//    LayerConfiguration{2, nil},
+//    LayerConfiguration{3, SigmoidActivation{}},
+//    LayerConfiguration{1, SigmoidActivation{}},
+//  }
+//  net := network.NewNetwork(config)
+func NewNetwork(layerConfigs []LayerConfiguration) (*Network, error) {
+	if layerConfigs[0].Activation != nil {
+		return nil, errors.New(`First activation has to be nil!`)
+	}
+
+	layers := []*layer{}
+
+	for idx, conf := range layerConfigs[1:len(layerConfigs)] {
+		numOutputs := conf.NumNodes
+		activation := conf.Activation
+		numInputs := layerConfigs[idx].NumNodes
+
+		layer := newLayer(numInputs, numOutputs, activation)
 		layers = append(layers, &layer)
 	}
 
 	return &Network{
 		layers: layers,
-	}
+	}, nil
 }
 
 // Snapshot stores a snapshot of all layers to files prefixed with `prefix`.
