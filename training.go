@@ -79,7 +79,7 @@ func trainNetwork(net *Network, samples []Sample) {
 		}
 		errorRate := float64(errors) / float64(len(validationSamples)+1)
 
-		logger.Println(epoch, errors, `errors out of`, len(validationSamples), `tests ->`, errorRate, `err%, mse`, meanMSE)
+		logger.Printf(`epoch % 3d: %d/%d -> %.3f%% error, mse: %.5f`, epoch, errors, len(validationSamples), errorRate * 100, meanMSE)
 
 		if epoch % 10 == 0 {
 			learningRate = learningRate * 0.9
