@@ -40,9 +40,8 @@ func main() {
 
 	config := []network.LayerConfiguration{
 		network.LayerConfiguration{28 * 28, nil},
-		network.LayerConfiguration{800, network.SigmoidActivation{}},
-		network.LayerConfiguration{40, network.LeakyRELUActivation{Leak: 0.01, Cap: 1e10}},
-		network.LayerConfiguration{10, network.LeakyRELUActivation{Leak: 0.01, Cap: 1e10}},
+		network.LayerConfiguration{800, network.LeakyRELUActivation{Leak: 0.001, Cap: 1e6}},
+		network.LayerConfiguration{10, network.SigmoidActivation{}},
 	}
 	net, err := network.NewNetwork(config)
 	if err != nil {
