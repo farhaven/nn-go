@@ -31,7 +31,7 @@ func indexProducer(maxIdx int, c chan int) {
 	}
 }
 
-func trainNetwork(net *Network, samples []Sample) {
+func trainNetwork(net *Network, samples []mnistSample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 	logger.Println(`attempting to load network layers from snapshot`)
 
