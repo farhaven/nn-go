@@ -23,6 +23,14 @@ func MaxIdx(values []float64) int {
 	return maxIdx
 }
 
+func indexProducer(maxIdx int, c chan int) {
+	for {
+		for _, idx := range rand.Perm(maxIdx) {
+			c <- idx
+		}
+	}
+}
+
 func trainNetwork(net *Network, samples []Sample) {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 	logger.Println(`attempting to load network layers from snapshot`)
@@ -36,13 +44,15 @@ func trainNetwork(net *Network, samples []Sample) {
 	validationSamples := samples[:valSize]
 	trainingSamples := samples[valSize:]
 
+	indexChan := make(chan int)
+	go indexProducer(len(trainingSamples), indexChan)
+
 	for epoch := 0; epoch < numEpochs; epoch++ {
 		meanMSE := float64(0)
 
 		// Randomize samples
-		idxes := rand.Perm(len(trainingSamples))
-		for _, idx := range idxes {
-			s := trainingSamples[idx]
+		for batch := 0; batch < len(trainingSamples); batch++ {
+			s := trainingSamples[<-indexChan]
 			output := net.Forward(s.input)
 			error := net.Error(output, s.target)
 			net.Backprop(s.input, error, learningRate)
