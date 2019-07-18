@@ -91,6 +91,7 @@ func trainNetwork(net *Network, samples []Sample) {
 
 		if meanMSE <= targetMSE {
 			logger.Println(`target mse reached after`, epoch, `training epochs`)
+			break
 		}
 	}
 }
