@@ -49,16 +49,6 @@ func main() {
 		log.Fatalln(`can't create network:`, err)
 	}
 
-	/*
-	samples := []Sample{
-		Sample{[]float64{0, 0}, []float64{0}},
-		Sample{[]float64{0, 1}, []float64{1}},
-		Sample{[]float64{1, 0}, []float64{1}},
-		Sample{[]float64{1, 1}, []float64{0}},
-	}
-	network := NewNetwork([]int{2, 3, 1})
-	*/
-
 	go profTask()
 
 	trainNetwork(network, samples)
