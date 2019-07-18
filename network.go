@@ -1,4 +1,4 @@
-package main
+package network
 
 import (
 	"fmt"
@@ -120,7 +120,7 @@ func NewNetwork(layerSizes []int, activation Activation) *Network {
 	}
 }
 
-func (n *Network) snapshot(prefix string) error {
+func (n *Network) Snapshot(prefix string) error {
 	for idx, layer := range n.layers {
 		if err := layer.snapshot(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
 			return err
@@ -130,7 +130,7 @@ func (n *Network) snapshot(prefix string) error {
 	return nil
 }
 
-func (n *Network) restore(prefix string) error {
+func (n *Network) Restore(prefix string) error {
 	for idx, layer := range n.layers {
 		if err := layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
 			return err
@@ -140,7 +140,7 @@ func (n *Network) restore(prefix string) error {
 	return nil
 }
 
-func (n *Network) forward(inputs []float64) []float64 {
+func (n *Network) Forward(inputs []float64) []float64 {
 	output := mat.NewVecDense(len(inputs), inputs)
 
 	for _, layer := range n.layers {
@@ -154,7 +154,7 @@ func (n *Network) forward(inputs []float64) []float64 {
 	return res
 }
 
-func (n *Network) backprop(inputs []float64, error []float64, learningRate float64) {
+func (n *Network) Backprop(inputs []float64, error []float64, learningRate float64) {
 	localError := mat.NewVecDense(len(error), error)
 	for layer_idx := len(n.layers) - 1; layer_idx >= 0; layer_idx-- {
 		localError = n.layers[layer_idx].computeGradient(localError)
@@ -167,7 +167,7 @@ func (n *Network) backprop(inputs []float64, error []float64, learningRate float
 	}
 }
 
-func (n *Network) error(outputs, targets []float64) []float64 {
+func (n *Network) Error(outputs, targets []float64) []float64 {
 	error := []float64{}
 
 	for idx, t := range targets {
