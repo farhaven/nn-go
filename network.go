@@ -2,54 +2,12 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 
 	"github.com/pkg/errors"
 	"gonum.org/v1/gonum/mat"
 )
-
-type Activation interface {
-	Forward(float64) float64
-	Backward(float64) float64
-}
-
-type TanhActivation struct{}
-
-func (t TanhActivation) Forward(x float64) float64 {
-	return math.Tanh(x)
-}
-func (t TanhActivation) Backward(x float64) float64 {
-	return 1 - math.Pow(x, 2.0)
-}
-
-type LeakyRELUActivation struct {
-	Leak float64
-}
-
-func (r LeakyRELUActivation) Forward(x float64) float64 {
-	if x >= 0 {
-		return x
-	}
-	return x * r.Leak
-}
-func (r LeakyRELUActivation) Backward(x float64) float64 {
-	if x < 0 {
-		return r.Leak
-	}
-	return 1.0
-}
-
-type SigmoidActivation struct{}
-
-func (s SigmoidActivation) Forward(x float64) float64 {
-	return 1.0 / (1.0 + math.Exp(-x))
-}
-func (s SigmoidActivation) Backward(x float64) float64 {
-	f := s.Forward(x)
-	return f * (1.0 - f)
-}
 
 type Layer struct {
 	weights    *mat.Dense
