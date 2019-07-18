@@ -44,12 +44,12 @@ func main() {
 		network.LayerConfiguration{40, network.LeakyRELUActivation{Leak: 0.01, Cap: 1e10}},
 		network.LayerConfiguration{10, network.LeakyRELUActivation{Leak: 0.01, Cap: 1e10}},
 	}
-	network, err := network.NewNetwork(config)
+	net, err := network.NewNetwork(config)
 	if err != nil {
 		log.Fatalln(`can't create network:`, err)
 	}
 
 	go profTask()
 
-	trainNetwork(network, samples)
+	trainNetwork(net, samples)
 }
