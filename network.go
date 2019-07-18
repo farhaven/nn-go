@@ -101,11 +101,16 @@ func (l *Layer) updateWeights(inputs *mat.VecDense, learningRate float64) {
 	l.weights.Add(l.weights, l.scratch)
 }
 
+// Network is structure that represents an unbiased neural network
 type Network struct {
 	layers []*Layer
 }
 
-/* Unbiased new network */
+// NewNetwork creates a new neural network with the desired layer sizes and activation function.
+//
+// The following creates a fully connected 2x3x1 network with sigmoid activation:
+//
+//  net := network.NewNetwork([]int{2, 3, 1}, SigmoidActivation{})
 func NewNetwork(layerSizes []int, activation Activation) *Network {
 	layers := []*Layer{}
 
@@ -120,6 +125,8 @@ func NewNetwork(layerSizes []int, activation Activation) *Network {
 	}
 }
 
+// Snapshot stores a snapshot of all layers to files prefixed with `prefix`.
+// The files are suffixed with the layer number and the string `.layer`.
 func (n *Network) Snapshot(prefix string) error {
 	for idx, layer := range n.layers {
 		if err := layer.snapshot(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
@@ -130,6 +137,9 @@ func (n *Network) Snapshot(prefix string) error {
 	return nil
 }
 
+// Restore restores a network that was previously saved with `Snapshot`.
+//
+// The result is undefined if the network architecture differs.
 func (n *Network) Restore(prefix string) error {
 	for idx, layer := range n.layers {
 		if err := layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
@@ -140,6 +150,8 @@ func (n *Network) Restore(prefix string) error {
 	return nil
 }
 
+// Forward performs a forward pass through the network for the given inputs.
+// The returned value is the output of the uppermost layer of neurons.
 func (n *Network) Forward(inputs []float64) []float64 {
 	output := mat.NewVecDense(len(inputs), inputs)
 
@@ -154,7 +166,17 @@ func (n *Network) Forward(inputs []float64) []float64 {
 	return res
 }
 
-func (n *Network) Backprop(inputs []float64, error []float64, learningRate float64) {
+// Backprop performs one pass of back propagation through the network for the given input, error and learning rate.
+//
+// Before Backprop is called, you need to do one forward pass for the input with Forward. A typical usage
+// looks like this:
+//
+//  input := []float64{0, 1.0, 2.0}
+//  target := []float64{0, 1}
+//  output := net.Forward(input)
+//  error := net.Error(output, target)
+//  net.Backprop(input, error, 0.1) // Perform back propagation with learning rate 0.1
+func (n *Network) Backprop(inputs, error []float64, learningRate float64) {
 	localError := mat.NewVecDense(len(error), error)
 	for layer_idx := len(n.layers) - 1; layer_idx >= 0; layer_idx-- {
 		localError = n.layers[layer_idx].computeGradient(localError)
@@ -167,6 +189,9 @@ func (n *Network) Backprop(inputs []float64, error []float64, learningRate float
 	}
 }
 
+// Error computes the error of the given outputs when compared to the given targets.
+//
+// This is intended to be used during training. See the documentation for Backprop for an example usage.
 func (n *Network) Error(outputs, targets []float64) []float64 {
 	error := []float64{}
 
