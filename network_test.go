@@ -22,13 +22,13 @@ func TestNetworkBackprop(t *testing.T) {
 	input := []float64{0, 1}
 	target := []float64{1}
 
-	output1 := net.forward(input)
-	error1 := net.error(output1, target)
+	output1 := net.Forward(input)
+	error1 := net.Error(output1, target)
 
-	net.backprop(input, error1, 2)
+	net.Backprop(input, error1, 2)
 
-	output2 := net.forward(input)
-	error2 := net.error(output2, target)
+	output2 := net.Forward(input)
+	error2 := net.Error(output2, target)
 
 	// Calculate squared errors to see if there's at least some improvement
 	se1 := float64(0)
@@ -65,9 +65,9 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 		for input, target := range samples {
 			input := input[:]
-			output := net.forward(input)
-			error := net.error(output, target)
-			net.backprop(input, error, learningRate)
+			output := net.Forward(input)
+			error := net.Error(output, target)
+			net.Backprop(input, error, learningRate)
 
 			for _, e := range error {
 				meanSquaredError += math.Pow(e, 2)
@@ -88,13 +88,13 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 	net := NewNetwork([]int{2, 3, 1}, SigmoidActivation{})
-	output1 := net.forward([]float64{0, 1})
+	output1 := net.Forward([]float64{0, 1})
 
-	net.snapshot(`test-network`)
+	net.Snapshot(`test-network`)
 
-	net.restore(`test-network`)
+	net.Restore(`test-network`)
 
-	output2 := net.forward([]float64{0, 1})
+	output2 := net.Forward([]float64{0, 1})
 
 	if output1[0] != output2[0] {
 		t.Errorf(`output changed: expected %v, got %v`, output1, output2)
@@ -105,8 +105,8 @@ func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 	net1 := NewNetwork([]int{1, 1}, SigmoidActivation{})
 	net2 := NewNetwork([]int{1, 1}, SigmoidActivation{})
 
-	net1.snapshot(`test-network`)
-	if err := net2.restore(`test-network`); err != nil {
+	net1.Snapshot(`test-network`)
+	if err := net2.Restore(`test-network`); err != nil {
 		t.Errorf(`can't restore network: %s`, err)
 	}
 
@@ -114,8 +114,8 @@ func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 		t.Errorf(`Weight changed. Expected %f, got %f`, net1.layers[0].weights.At(0, 0), net2.layers[0].weights.At(0, 0))
 	}
 
-	output1 := net1.forward([]float64{1})
-	output2 := net2.forward([]float64{1})
+	output1 := net1.Forward([]float64{1})
+	output2 := net2.Forward([]float64{1})
 
 	if output1[0] != output2[0] {
 		t.Errorf(`Output changed: expected %v, got %v`, output1, output2)
