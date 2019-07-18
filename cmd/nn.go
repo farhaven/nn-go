@@ -51,4 +51,18 @@ func main() {
 	go profTask()
 
 	trainNetwork(net, samples)
+
+	// Evaluate network on the test set
+	logger.Println(`evaluating network on test set`)
+	errors := 0
+	samples = readMnist(`t10k`)
+	for _, s := range samples {
+		output := net.Forward(s.input)
+		label := maxIdx(output)
+		if label != maxIdx(s.target) {
+			errors += 1
+		}
+	}
+	errorRate := float64(errors) / float64(len(samples) + 1)
+	logger.Printf(`errors: %d/%d (%.3f%% error)`, errors, len(samples), errorRate * 100)
 }
