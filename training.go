@@ -9,7 +9,7 @@ import (
 
 const numEpochs = 300
 
-func MaxIdx(values []float64) int {
+func maxIdx(values []float64) int {
 	maxSeen := math.Inf(-1)
 	maxIdx := 0
 
@@ -72,8 +72,8 @@ func trainNetwork(net *Network, samples []Sample) {
 		errors := 0
 		for _, s := range validationSamples {
 			output := net.Forward(s.input)
-			label := MaxIdx(output)
-			if label != MaxIdx(s.target) {
+			label := maxIdx(output)
+			if label != maxIdx(s.target) {
 				errors += 1
 			}
 		}

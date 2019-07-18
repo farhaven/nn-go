@@ -7,7 +7,12 @@ import (
 	"os"
 )
 
-func ReadMnist(prefix string) []Sample {
+type mnistSample struct {
+	input  []float64
+	target []float64
+}
+
+func readMnist(prefix string) []mnistSample {
 	logger := log.New(os.Stdout, `[MNIST] `, log.LstdFlags)
 
 	logger.Println(`reading mnist data from`, prefix)
@@ -76,7 +81,7 @@ func ReadMnist(prefix string) []Sample {
 
 	/* Load images and labels and build samples from that */
 	buf := make([]uint8, imgDims[0]*imgDims[1])
-	samples := []Sample{}
+	samples := []mnistSample{}
 	for {
 		err = binary.Read(imgfh, binary.BigEndian, buf)
 		if err == io.EOF {
@@ -97,7 +102,7 @@ func ReadMnist(prefix string) []Sample {
 		}
 		onehot[label] = 1.0
 
-		samples = append(samples, Sample{
+		samples = append(samples, mnistSample{
 			input: img,
 			target: onehot,
 		})

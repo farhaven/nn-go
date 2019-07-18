@@ -176,8 +176,3 @@ func (n *Network) Error(outputs, targets []float64) []float64 {
 
 	return error
 }
-
-type Sample struct {
-	input  []float64
-	target []float64
-}

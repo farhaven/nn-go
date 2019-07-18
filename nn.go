@@ -33,7 +33,7 @@ func main() {
 
 	rand.Seed(time.Now().Unix())
 
-	samples := ReadMnist(`train`)
+	samples := readMnist(`train`)
 	logger.Println(`training data loaded, starting training`)
 
 	network := NewNetwork([]int{28 * 28, 800, 40, 10}, SigmoidActivation{})
