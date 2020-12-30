@@ -7,6 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 	"gonum.org/v1/gonum/mat"
+
+	"github.com/farhaven/nn-go/activation"
 )
 
 type layer struct {
@@ -14,10 +16,10 @@ type layer struct {
 	delta      *mat.VecDense
 	output     *mat.VecDense
 	scratch    *mat.Dense // Scratch buffer for weight updates
-	activation Activation
+	activation activation.Activation
 }
 
-func newLayer(inputs, outputs int, activation Activation) layer {
+func newLayer(inputs, outputs int, activation activation.Activation) layer {
 	// Initialize layer with random weights
 	weights := mat.NewDense(outputs, inputs, nil)
 	weights.Apply(func(i, j int, v float64) float64 {
@@ -109,7 +111,7 @@ type Network struct {
 // LayerConfiguration represents a configuration for one single layer in the network
 type LayerConfiguration struct {
 	NumNodes   int
-	Activation Activation
+	Activation activation.Activation
 }
 
 // NewNetwork creates a new neural network with the desired layer configurations.

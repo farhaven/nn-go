@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/farhaven/nn-go/activation"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -11,7 +12,7 @@ func TestLayerComputeGradient(t *testing.T) {
 	input := mat.NewVecDense(3, []float64{-1, 0, 1})
 	error := mat.NewVecDense(2, []float64{0, 0.3})
 
-	layer := newLayer(3, 2, SigmoidActivation{})
+	layer := newLayer(3, 2, activation.Sigmoid{})
 	layer.forward(input)
 	layer.computeGradient(error)
 }
@@ -19,8 +20,8 @@ func TestLayerComputeGradient(t *testing.T) {
 func TestNetworkBackprop(t *testing.T) {
 	config := []LayerConfiguration{
 		LayerConfiguration{2, nil},
-		LayerConfiguration{3, SigmoidActivation{}},
-		LayerConfiguration{1, SigmoidActivation{}},
+		LayerConfiguration{3, activation.Sigmoid{}},
+		LayerConfiguration{1, activation.Sigmoid{}},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -54,10 +55,12 @@ func TestNetworkBackprop(t *testing.T) {
 }
 
 func TestNetworkLearnXOR(t *testing.T) {
+	act := activation.Tanh{}
+
 	config := []LayerConfiguration{
 		LayerConfiguration{2, nil},
-		LayerConfiguration{3, LeakyRELUActivation{Leak: 0.01}},
-		LayerConfiguration{1, LeakyRELUActivation{Leak: 0.01}},
+		LayerConfiguration{3, act},
+		LayerConfiguration{1, act},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -72,7 +75,7 @@ func TestNetworkLearnXOR(t *testing.T) {
 	}
 
 	targetMSE := 0.005
-	learningRate := 0.1
+	learningRate := 0.5
 
 	var iter int
 
@@ -107,8 +110,8 @@ func TestNetworkLearnXOR(t *testing.T) {
 func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 	config := []LayerConfiguration{
 		LayerConfiguration{2, nil},
-		LayerConfiguration{3, SigmoidActivation{}},
-		LayerConfiguration{1, SigmoidActivation{}},
+		LayerConfiguration{3, activation.Sigmoid{}},
+		LayerConfiguration{1, activation.Sigmoid{}},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -130,8 +133,8 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 	config := []LayerConfiguration{
 		LayerConfiguration{2, nil},
-		LayerConfiguration{3, SigmoidActivation{}},
-		LayerConfiguration{1, SigmoidActivation{}},
+		LayerConfiguration{3, activation.Sigmoid{}},
+		LayerConfiguration{1, activation.Sigmoid{}},
 	}
 
 	net1, err := NewNetwork(config)
@@ -163,11 +166,11 @@ func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 func TestLayerSnapshotAndRestoreNewLayer(t *testing.T) {
 	input := mat.NewVecDense(1, []float64{1})
 
-	layer1 := newLayer(1, 1, SigmoidActivation{})
+	layer1 := newLayer(1, 1, activation.Sigmoid{})
 	output1 := layer1.forward(input)
 	layer1.snapshot(`test-layer`)
 
-	layer2 := newLayer(1, 1, SigmoidActivation{})
+	layer2 := newLayer(1, 1, activation.Sigmoid{})
 	layer2.restore(`test-layer`)
 	output2 := layer2.forward(input)
 

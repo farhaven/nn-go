@@ -8,6 +8,7 @@ import (
 	"time"
 
 	network "github.com/farhaven/nn-go"
+	"github.com/farhaven/nn-go/activation"
 )
 
 func profTask() {
@@ -40,8 +41,8 @@ func main() {
 
 	config := []network.LayerConfiguration{
 		network.LayerConfiguration{28 * 28, nil},
-		network.LayerConfiguration{800, network.LeakyRELUActivation{Leak: 0.001, Cap: 1e6}},
-		network.LayerConfiguration{10, network.SigmoidActivation{}},
+		network.LayerConfiguration{800, activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
+		network.LayerConfiguration{10, activation.Sigmoid{}},
 	}
 	net, err := network.NewNetwork(config)
 	if err != nil {
@@ -63,6 +64,6 @@ func main() {
 			errors += 1
 		}
 	}
-	errorRate := float64(errors) / float64(len(samples) + 1)
-	logger.Printf(`errors: %d/%d (%.3f%% error)`, errors, len(samples), errorRate * 100)
+	errorRate := float64(errors) / float64(len(samples)+1)
+	logger.Printf(`errors: %d/%d (%.3f%% error)`, errors, len(samples), errorRate*100)
 }
