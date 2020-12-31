@@ -66,7 +66,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) {
 			if math.IsNaN(mse) {
 				panic(`NaN mse. Error too high? Check bounds of activation!`)
 			}
-			meanMSE += mse / float64(len(error) + 1)
+			meanMSE += mse / float64(len(error)+1)
 		}
 
 		meanMSE /= float64(len(samples) + 1)
@@ -81,10 +81,10 @@ func trainNetwork(net *network.Network, samples []mnistSample) {
 		}
 		errorRate := float64(errors) / float64(len(validationSamples)+1)
 
-		logger.Printf(`epoch % 3d: %d/%d -> %.3f%% error, mse: %.5f`, epoch, errors, len(validationSamples), errorRate * 100, meanMSE)
+		logger.Printf(`epoch % 3d: %d/%d -> %.3f%% error, mse: %.5f`, epoch, errors, len(validationSamples), errorRate*100, meanMSE)
 
-		if epoch % 10 == 0 {
-			learningRate = math.Max(0.0001, learningRate * 0.9)
+		if epoch%10 == 0 {
+			learningRate = math.Max(0.0001, learningRate*0.9)
 			logger.Println(`adjusted learning rate to`, learningRate)
 		}
 

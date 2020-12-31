@@ -108,9 +108,9 @@ type Network struct {
 	layers []*layer
 }
 
-// LayerConfiguration represents a configuration for one single layer in the network
-type LayerConfiguration struct {
-	NumNodes   int
+// LayerConf represents a configuration for one single layer in the network
+type LayerConf struct {
+	Inputs     int
 	Activation activation.Activation
 }
 
@@ -125,17 +125,17 @@ type LayerConfiguration struct {
 //    LayerConfiguration{1, SigmoidActivation{}},
 //  }
 //  net := network.NewNetwork(config)
-func NewNetwork(layerConfigs []LayerConfiguration) (*Network, error) {
+func NewNetwork(layerConfigs []LayerConf) (*Network, error) {
 	if layerConfigs[0].Activation != nil {
 		return nil, errors.New(`First activation has to be nil!`)
 	}
 
 	layers := []*layer{}
 
-	for idx, conf := range layerConfigs[1:len(layerConfigs)] {
-		numOutputs := conf.NumNodes
+	for idx, conf := range layerConfigs[1:] {
+		numOutputs := conf.Inputs
 		activation := conf.Activation
-		numInputs := layerConfigs[idx].NumNodes
+		numInputs := layerConfigs[idx].Inputs
 
 		layer := newLayer(numInputs, numOutputs, activation)
 		layers = append(layers, &layer)

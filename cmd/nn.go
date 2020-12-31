@@ -39,10 +39,10 @@ func main() {
 	samples := readMnist(`train`)
 	logger.Println(`training data loaded, starting training`)
 
-	config := []network.LayerConfiguration{
-		network.LayerConfiguration{28 * 28, nil},
-		network.LayerConfiguration{800, activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
-		network.LayerConfiguration{10, activation.Sigmoid{}},
+	config := []network.LayerConf{
+		{28 * 28, nil},
+		{800, activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
+		{10, activation.Sigmoid{}},
 	}
 	net, err := network.NewNetwork(config)
 	if err != nil {

@@ -18,10 +18,10 @@ func TestLayerComputeGradient(t *testing.T) {
 }
 
 func TestNetworkBackprop(t *testing.T) {
-	config := []LayerConfiguration{
-		LayerConfiguration{2, nil},
-		LayerConfiguration{3, activation.Sigmoid{}},
-		LayerConfiguration{1, activation.Sigmoid{}},
+	config := []LayerConf{
+		{2, nil},
+		{3, activation.Sigmoid{}},
+		{1, activation.Sigmoid{}},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -57,10 +57,10 @@ func TestNetworkBackprop(t *testing.T) {
 func TestNetworkLearnXOR(t *testing.T) {
 	act := activation.Tanh{}
 
-	config := []LayerConfiguration{
-		LayerConfiguration{2, nil},
-		LayerConfiguration{3, act},
-		LayerConfiguration{1, act},
+	config := []LayerConf{
+		{2, nil},
+		{3, act},
+		{1, act},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -68,10 +68,10 @@ func TestNetworkLearnXOR(t *testing.T) {
 	}
 
 	samples := map[[2]float64][]float64{
-		[2]float64{0, 0}: []float64{0},
-		[2]float64{0, 1}: []float64{1},
-		[2]float64{1, 0}: []float64{1},
-		[2]float64{1, 1}: []float64{0},
+		{0, 0}: {0},
+		{0, 1}: {1},
+		{1, 0}: {1},
+		{1, 1}: {0},
 	}
 
 	targetMSE := 0.005
@@ -108,10 +108,10 @@ func TestNetworkLearnXOR(t *testing.T) {
 }
 
 func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
-	config := []LayerConfiguration{
-		LayerConfiguration{2, nil},
-		LayerConfiguration{3, activation.Sigmoid{}},
-		LayerConfiguration{1, activation.Sigmoid{}},
+	config := []LayerConf{
+		{2, nil},
+		{3, activation.Sigmoid{}},
+		{1, activation.Sigmoid{}},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -131,10 +131,10 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 }
 
 func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
-	config := []LayerConfiguration{
-		LayerConfiguration{2, nil},
-		LayerConfiguration{3, activation.Sigmoid{}},
-		LayerConfiguration{1, activation.Sigmoid{}},
+	config := []LayerConf{
+		{2, nil},
+		{3, activation.Sigmoid{}},
+		{1, activation.Sigmoid{}},
 	}
 
 	net1, err := NewNetwork(config)

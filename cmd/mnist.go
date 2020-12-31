@@ -103,7 +103,7 @@ func readMnist(prefix string) []mnistSample {
 		onehot[label] = 1.0
 
 		samples = append(samples, mnistSample{
-			input: img,
+			input:  img,
 			target: onehot,
 		})
 	}
