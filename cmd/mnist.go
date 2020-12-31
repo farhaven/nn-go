@@ -97,6 +97,10 @@ func readMnist(prefix string) []mnistSample {
 		onehot := make([]float64, 10)
 		var label uint8
 		err = binary.Read(lblfh, binary.BigEndian, &label)
+		if err != nil {
+			logger.Fatalln("can't read label")
+		}
+
 		if label >= 10 {
 			logger.Fatalln(`unexpected label:`, label)
 		}

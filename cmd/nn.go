@@ -18,17 +18,20 @@ func profTask() {
 		logger.Fatalln(`can't create CPU profile:`, err)
 	}
 
-	pprof.StartCPUProfile(proffd)
+	err = pprof.StartCPUProfile(proffd)
+	if err != nil {
+		logger.Fatalln("can't start CPU profile:", err)
+	}
+
 	logger.Println(`started profiling`)
 	defer func() {
 		pprof.StopCPUProfile()
 		logger.Println(`stopped profiling`)
 	}()
 
-	select {
-	case <-time.After(120 * time.Second):
-		logger.Println(`profile timer expired`)
-	}
+	time.Sleep(120 * time.Second)
+
+	logger.Println(`profile timer expired`)
 }
 
 func main() {
@@ -40,9 +43,9 @@ func main() {
 	logger.Println(`training data loaded, starting training`)
 
 	config := []network.LayerConf{
-		{28 * 28, nil},
-		{800, activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
-		{10, activation.Sigmoid{}},
+		{Inputs: 28 * 28},
+		{Inputs: 800, Activation: activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
+		{Inputs: 10, Activation: activation.Sigmoid{}},
 	}
 	net, err := network.NewNetwork(config)
 	if err != nil {
@@ -51,7 +54,10 @@ func main() {
 
 	go profTask()
 
-	trainNetwork(net, samples)
+	err = trainNetwork(net, samples)
+	if err != nil {
+		log.Fatalln("failed to train network:", err)
+	}
 
 	// Evaluate network on the test set
 	logger.Println(`evaluating network on test set`)

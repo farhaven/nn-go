@@ -123,9 +123,15 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 	}
 	output1 := net.Forward([]float64{0, 1})
 
-	net.Snapshot(`test-network`)
+	err = net.Snapshot(`test-network`)
+	if err != nil {
+		t.Fatal("unexpected error during snapshot:", err)
+	}
 
-	net.Restore(`test-network`)
+	err = net.Restore(`test-network`)
+	if err != nil {
+		t.Fatal("unexpected error during restore:", err)
+	}
 
 	output2 := net.Forward([]float64{0, 1})
 
@@ -150,9 +156,13 @@ func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 		t.Error(`can't create second network`, err)
 	}
 
-	net1.Snapshot(`test-network`)
+	err = net1.Snapshot(`test-network`)
+	if err != nil {
+		t.Fatalf("unexpected error during snapshot: %s", err)
+	}
+
 	if err := net2.Restore(`test-network`); err != nil {
-		t.Errorf(`can't restore network: %s`, err)
+		t.Fatalf(`can't restore network: %s`, err)
 	}
 
 	if net1.layers[0].weights.At(0, 0) != net2.layers[0].weights.At(0, 0) {
@@ -172,10 +182,19 @@ func TestLayerSnapshotAndRestoreNewLayer(t *testing.T) {
 
 	layer1 := newLayer(1, 1, activation.Sigmoid{})
 	output1 := layer1.forward(input)
-	layer1.snapshot(`test-layer`)
+
+	err := layer1.snapshot(`test-layer`)
+	if err != nil {
+		t.Fatal("can't snapshot layer:", err)
+	}
 
 	layer2 := newLayer(1, 1, activation.Sigmoid{})
-	layer2.restore(`test-layer`)
+
+	err = layer2.restore(`test-layer`)
+	if err != nil {
+		t.Fatal("can't restore layer:", err)
+	}
+
 	output2 := layer2.forward(input)
 
 	if layer1.weights.At(0, 0) != layer2.weights.At(0, 0) {

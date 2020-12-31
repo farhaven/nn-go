@@ -33,11 +33,14 @@ func indexProducer(maxIdx int, c chan int) {
 	}
 }
 
-func trainNetwork(net *network.Network, samples []mnistSample) {
+func trainNetwork(net *network.Network, samples []mnistSample) error {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 	logger.Println(`attempting to load network layers from snapshot`)
 
-	net.Restore(`mnist-network`)
+	err := net.Restore(`mnist-network`)
+	if err != nil {
+		return err
+	}
 
 	targetMSE := 0.0005
 	learningRate := float64(0.01)
@@ -89,11 +92,16 @@ func trainNetwork(net *network.Network, samples []mnistSample) {
 		}
 
 		// Make a snapshot of the network after each epoch
-		net.Snapshot(`mnist-network`)
+		err := net.Snapshot(`mnist-network`)
+		if err != nil {
+			return err
+		}
 
 		if meanMSE <= targetMSE {
 			logger.Println(`target mse reached after`, epoch, `training epochs`)
 			break
 		}
 	}
+
+	return nil
 }
