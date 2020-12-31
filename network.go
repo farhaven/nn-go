@@ -198,8 +198,8 @@ func (n *Network) Forward(inputs []float64) []float64 {
 //  net.Backprop(input, error, 0.1) // Perform back propagation with learning rate 0.1
 func (n *Network) Backprop(inputs, error []float64, learningRate float64) {
 	localError := mat.NewVecDense(len(error), error)
-	for layer_idx := len(n.layers) - 1; layer_idx >= 0; layer_idx-- {
-		localError = n.layers[layer_idx].computeGradient(localError)
+	for idx := len(n.layers) - 1; idx >= 0; idx-- {
+		localError = n.layers[idx].computeGradient(localError)
 	}
 
 	localInput := mat.NewVecDense(len(inputs), inputs)
