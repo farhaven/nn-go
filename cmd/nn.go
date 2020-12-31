@@ -44,7 +44,7 @@ func main() {
 
 	config := []network.LayerConf{
 		{Inputs: 28 * 28},
-		{Inputs: 800, Activation: activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
+		{Inputs: 80, Activation: activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
 		{Inputs: 10, Activation: activation.Sigmoid{}},
 	}
 	net, err := network.NewNetwork(config)
