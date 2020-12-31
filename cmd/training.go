@@ -39,7 +39,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 
 	err := net.Restore(`mnist-network`)
 	if err != nil {
-		return err
+		logger.Println("can't load network from snapshot, starting fresh")
 	}
 
 	targetMSE := 0.0005
