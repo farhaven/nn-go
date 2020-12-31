@@ -119,10 +119,10 @@ type LayerConf struct {
 //
 // The following creates a fully connected 2x3x1 network with sigmoid activation between all layers:
 //
-//  config := []LayerConfiguration{
-//    LayerConfiguration{2, nil},
-//    LayerConfiguration{3, SigmoidActivation{}},
-//    LayerConfiguration{1, SigmoidActivation{}},
+//  config := []LayerConf{
+//    LayerConf{Inputs: 2, Activation: nil},
+//    LayerConf{Inputs: 3, Activation: SigmoidActivation{}},
+//    LayerConf{Inputs: 1, Activation: SigmoidActivation{}},
 //  }
 //  net := network.NewNetwork(config)
 func NewNetwork(layerConfigs []LayerConf) (*Network, error) {
@@ -134,10 +134,9 @@ func NewNetwork(layerConfigs []LayerConf) (*Network, error) {
 
 	for idx, conf := range layerConfigs[1:] {
 		numOutputs := conf.Inputs
-		activation := conf.Activation
 		numInputs := layerConfigs[idx].Inputs
 
-		layer := newLayer(numInputs, numOutputs, activation)
+		layer := newLayer(numInputs, numOutputs, conf.Activation)
 		layers = append(layers, &layer)
 	}
 

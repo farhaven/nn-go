@@ -19,9 +19,9 @@ func TestLayerComputeGradient(t *testing.T) {
 
 func TestNetworkBackprop(t *testing.T) {
 	config := []LayerConf{
-		{2, nil},
-		{3, activation.Sigmoid{}},
-		{1, activation.Sigmoid{}},
+		{Inputs: 2},
+		{Inputs: 3, Activation: activation.Sigmoid{}},
+		{Inputs: 1, Activation: activation.Sigmoid{}},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -58,9 +58,9 @@ func TestNetworkLearnXOR(t *testing.T) {
 	act := activation.Tanh{}
 
 	config := []LayerConf{
-		{2, nil},
-		{3, act},
-		{1, act},
+		{Inputs: 2},
+		{Inputs: 3, Activation: act},
+		{Inputs: 1, Activation: act},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -113,9 +113,9 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 	config := []LayerConf{
-		{2, nil},
-		{3, activation.Sigmoid{}},
-		{1, activation.Sigmoid{}},
+		{Inputs: 2},
+		{Inputs: 3, Activation: activation.Sigmoid{}},
+		{Inputs: 1, Activation: activation.Sigmoid{}},
 	}
 	net, err := NewNetwork(config)
 	if err != nil {
@@ -136,9 +136,9 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 
 func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
 	config := []LayerConf{
-		{2, nil},
-		{3, activation.Sigmoid{}},
-		{1, activation.Sigmoid{}},
+		{Inputs: 2},
+		{Inputs: 3, Activation: activation.Sigmoid{}},
+		{Inputs: 1, Activation: activation.Sigmoid{}},
 	}
 
 	net1, err := NewNetwork(config)
