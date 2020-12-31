@@ -6,10 +6,10 @@ functions.
 
 For example, the following code trains a simple 2x3x1 neural network the XOR function:
 
-	config := []network.LayerConfiguration{
-		network.LayerConfiguration{2, nil},
-		network.LayerConfiguration{3, network.LeakyRELUActivation{Leak: 0.01}},
-		network.LayerConfiguration{1, network.LeakyRELUActivation{Leak: 0.01}},
+	config := []network.LayerConf{
+		network.LayerConf{Inputs: 2},
+		network.LayerConf{Inputs:3, Activation: activation.LeakyReLU{Leak: 0.01}},
+		network.LayerConf{Inputs:1, Activation: activation.LeakyReLU{Leak: 0.01}},
 	}
 	net, err := network.NewNetwork(config)
 	if err != nil {
