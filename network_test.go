@@ -106,9 +106,14 @@ func TestNetworkLearnXOR(t *testing.T) {
 
 	if iter > 800 {
 		t.Error(`took more than 800 iterations to learn XOR:`, iter)
+	} else {
+		t.Log("learned XOR in", iter, "iterations")
 	}
 
-	t.Log("learned XOR in", iter, "iterations")
+	for sample, target := range samples {
+		output := net.Forward(sample[:])
+		t.Log("sample", sample, "target", target, "output", output)
+	}
 }
 
 func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
