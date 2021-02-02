@@ -84,3 +84,13 @@ func (s Softplus) Forward(v float64) float64 {
 func (s Softplus) Backward(v float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-v))
 }
+
+type Gaussian struct{}
+
+func (g Gaussian) Forward(x float64) float64 {
+	return math.Exp(math.Pow(-x, 2))
+}
+
+func (g Gaussian) Backward(x float64) float64 {
+	return -2 * x * math.Exp(math.Pow(-x, 2))
+}
