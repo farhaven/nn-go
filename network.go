@@ -2,6 +2,8 @@ package network
 
 import (
 	"fmt"
+	"log"
+	"math"
 	"math/rand"
 	"os"
 
@@ -86,10 +88,21 @@ func (l *layer) computeGradient(error *mat.VecDense) *mat.VecDense {
 }
 
 func (l *layer) forward(inputs *mat.VecDense) *mat.VecDense {
+	for idx, val := range inputs.RawVector().Data {
+		if math.IsNaN(val) {
+			panic(fmt.Sprintf("NaN layer input at %v", idx))
+		}
+	}
+
 	l.output.MulVec(l.weights, inputs)
 
 	for idx := 0; idx < l.output.Len(); idx++ {
-		l.output.SetVec(idx, l.activation.Forward(l.output.AtVec(idx)))
+		f := l.activation.Forward(l.output.AtVec(idx))
+		if math.IsNaN(f) {
+			panic(fmt.Sprintf("NaN layer output, was %v before activation", l.output.AtVec(idx)))
+		}
+
+		l.output.SetVec(idx, f)
 	}
 
 	return l.output
@@ -175,14 +188,24 @@ func (n *Network) Restore(prefix string) error {
 func (n *Network) Forward(inputs []float64) []float64 {
 	output := mat.NewVecDense(len(inputs), inputs)
 
-	for _, layer := range n.layers {
+	for layerIdx, layer := range n.layers {
+		for outIdx, o := range output.RawVector().Data {
+			if math.IsNaN(o) {
+				panic(fmt.Sprintf("NaN layer output at %d (layer %d)", outIdx, layerIdx))
+			}
+		}
+
 		output = layer.forward(output)
 	}
 
 	res := []float64{}
 	for idx := 0; idx < output.Len(); idx++ {
+		if math.IsNaN(output.AtVec(idx)) {
+			panic("NaN output value")
+		}
 		res = append(res, output.AtVec(idx))
 	}
+
 	return res
 }
 
