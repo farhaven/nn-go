@@ -86,7 +86,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 
 		logger.Printf(`epoch % 3d: %d/%d -> %.3f%% error, mse: %.5f`, epoch, errors, len(validationSamples), errorRate*100, meanMSE)
 
-		if epoch%10 == 0 {
+		if (epoch+1)%10 == 0 {
 			learningRate = math.Max(0.0001, learningRate*0.9)
 			logger.Println(`adjusted learning rate to`, learningRate)
 		}
