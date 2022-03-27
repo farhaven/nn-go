@@ -32,12 +32,12 @@ func TestNetworkBackprop(t *testing.T) {
 	target := []float64{1}
 
 	output1 := net.Forward(input)
-	error1 := net.Error(output1, target)
+	error1 := Error(output1, target)
 
 	net.Backprop(input, error1, 2)
 
 	output2 := net.Forward(input)
-	error2 := net.Error(output2, target)
+	error2 := Error(output2, target)
 
 	// Calculate squared errors to see if there's at least some improvement
 	se1 := float64(0)
@@ -85,7 +85,7 @@ func TestNetworkLearnXOR(t *testing.T) {
 		for input, target := range samples {
 			input := input[:]
 			output := net.Forward(input)
-			error := net.Error(output, target)
+			error := Error(output, target)
 			net.Backprop(input, error, learningRate)
 
 			for _, e := range error {

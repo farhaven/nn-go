@@ -36,6 +36,18 @@ func newLayer(inputs, outputs int, activation activation.Activation) layer {
 	}
 }
 
+func (l *layer) clone() *layer {
+	clone := layer{
+		activation: l.activation,
+		weights:    mat.DenseCopyOf(l.weights),
+		delta:      mat.VecDenseCopyOf(l.delta),
+		output:     mat.VecDenseCopyOf(l.output),
+		scratch:    mat.DenseCopyOf(l.scratch),
+	}
+
+	return &clone
+}
+
 func (l *layer) snapshot(path string) error {
 	fh, err := os.Create(path)
 	if err != nil {
@@ -157,6 +169,16 @@ func NewNetwork(layerConfigs []LayerConf) (*Network, error) {
 	}, nil
 }
 
+func (n *Network) Clone() *Network {
+	clone := Network{}
+
+	for _, l := range n.layers {
+		clone.layers = append(clone.layers, l.clone())
+	}
+
+	return &clone
+}
+
 // Snapshot stores a snapshot of all layers to files prefixed with `prefix`.
 // The files are suffixed with the layer number and the string `.layer`.
 func (n *Network) Snapshot(prefix string) error {
@@ -216,7 +238,7 @@ func (n *Network) Forward(inputs []float64) []float64 {
 //  input := []float64{0, 1.0, 2.0}
 //  target := []float64{0, 1}
 //  output := net.Forward(input)
-//  error := net.Error(output, target)
+//  error := Error(output, target)
 //  net.Backprop(input, error, 0.1) // Perform back propagation with learning rate 0.1
 func (n *Network) Backprop(inputs, error []float64, learningRate float64) {
 	localError := mat.NewVecDense(len(error), error)
@@ -234,11 +256,11 @@ func (n *Network) Backprop(inputs, error []float64, learningRate float64) {
 // Error computes the error of the given outputs when compared to the given targets.
 //
 // This is intended to be used during training. See the documentation for Backprop for an example usage.
-func (n *Network) Error(outputs, targets []float64) []float64 {
-	error := []float64{}
+func Error(outputs, targets []float64) []float64 {
+	error := make([]float64, len(targets))
 
 	for idx, t := range targets {
-		error = append(error, t-outputs[idx])
+		error[idx] = t - outputs[idx]
 	}
 
 	return error

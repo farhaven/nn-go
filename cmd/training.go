@@ -59,7 +59,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 		for batch := 0; batch < len(trainingSamples); batch++ {
 			s := trainingSamples[<-indexChan]
 			output := net.Forward(s.input)
-			error := net.Error(output, s.target)
+			error := network.Error(output, s.target)
 			net.Backprop(s.input, error, learningRate)
 
 			mse := float64(0)
