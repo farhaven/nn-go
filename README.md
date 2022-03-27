@@ -36,7 +36,7 @@ function:
     	for input, target := range samples {
     		input := input[:]
     		output := net.Forward(input)
-    		error := net.Error(output, target)
+    		error := network.Error(output, target)
     		net.Backprop(input, error, learningRate)
 
     		for _, e := range error {
