@@ -47,7 +47,7 @@ func main() {
 		{Inputs: 80, Activation: activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
 		{Inputs: 10, Activation: activation.Sigmoid{}},
 	}
-	net, err := network.NewNetwork(config)
+	net, err := network.New(config)
 	if err != nil {
 		log.Fatalln(`can't create network:`, err)
 	}

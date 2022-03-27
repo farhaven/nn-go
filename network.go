@@ -149,7 +149,7 @@ type LayerConf struct {
 //    LayerConf{Inputs: 1, Activation: SigmoidActivation{}},
 //  }
 //  net := network.NewNetwork(config)
-func NewNetwork(layerConfigs []LayerConf) (*Network, error) {
+func New(layerConfigs []LayerConf) (*Network, error) {
 	if layerConfigs[0].Activation != nil {
 		return nil, errors.New(`First activation has to be nil!`)
 	}
