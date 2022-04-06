@@ -37,9 +37,14 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 	logger := log.New(os.Stdout, `[TRAIN] `, log.LstdFlags)
 	logger.Println(`attempting to load network layers from snapshot`)
 
-	err := net.Restore(`mnist-network`)
-	if err != nil {
-		logger.Println("can't load network from snapshot, starting fresh")
+	fh, err := os.Open(`mnist-network`)
+	if err == nil {
+		defer fh.Close()
+
+		err := net.Restore(fh)
+		if err != nil {
+			logger.Println("can't load network from snapshot, starting fresh")
+		}
 	}
 
 	targetMSE := 0.0005
@@ -91,8 +96,23 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 			logger.Println(`adjusted learning rate to`, learningRate)
 		}
 
-		// Make a snapshot of the network after each epoch
-		err := net.Snapshot(`mnist-network`)
+		err := func() error {
+			// Make a snapshot of the network after each epoch. This is a closure to make deferring the `fh.Close` a bit
+			// more straightforward.
+
+			fh, err := os.Create("mnist-network")
+			if err != nil {
+				return err
+			}
+			defer fh.Close()
+
+			err = net.Snapshot(fh)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
 		if err != nil {
 			return err
 		}

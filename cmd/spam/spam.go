@@ -156,15 +156,20 @@ func main() {
 		log.Fatalln("can't create network:", err)
 	}
 
-	err = net.Restore(*name)
-	if err != nil {
-		log.Println("restoring network failed:", err)
-
-		// Re-initialize network
-		net, err = network.New(config)
+	fh, err := os.Open(*name)
+	if err == nil {
+		err = net.Restore(fh)
 		if err != nil {
-			log.Fatalln("can't create network:", err)
+			log.Println("restoring network failed:", err)
+
+			// Re-initialize network
+			net, err = network.New(config)
+			if err != nil {
+				log.Fatalln("can't create network:", err)
+			}
 		}
+
+		fh.Close()
 	}
 
 	if err != nil {
@@ -189,7 +194,13 @@ func main() {
 		log.Fatalln("feeding failed:", err)
 	}
 
-	err = net.Snapshot(*name)
+	fh, err = os.Create(*name)
+	if err != nil {
+		log.Fatalln("creating persistence file for network failed:", err)
+	}
+	defer fh.Close()
+
+	err = net.Snapshot(fh)
 	if err != nil {
 		log.Fatalln("network persistence failed:", err)
 	}

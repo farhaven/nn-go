@@ -1,10 +1,12 @@
 package network
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
-	"os"
+	"strconv"
 
 	"github.com/pkg/errors"
 	"gonum.org/v1/gonum/mat"
@@ -48,33 +50,32 @@ func (l *layer) clone() *layer {
 	return &clone
 }
 
-func (l *layer) snapshot(path string) error {
-	fh, err := os.Create(path)
+func (l *layer) snapshot(fh io.Writer) error {
+	_, err := l.weights.MarshalBinaryTo(fh)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf(`while creating snapshot %s`, path))
-	}
-	defer fh.Close()
-
-	_, err = l.weights.MarshalBinaryTo(fh)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf(`while unmarshaling snapshot %s`, path))
+		return err
 	}
 
 	return nil
 }
 
-func (l *layer) restore(path string) error {
-	fh, err := os.Open(path)
+func (l *layer) encodedSize() (int, error) {
+	buf, err := l.weights.MarshalBinary()
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf(`while reading snapshot %s`, path))
+		return 0, err
 	}
-	defer fh.Close()
 
+	return len(buf), nil
+}
+
+func (l *layer) restore(fh io.Reader) error {
 	var weights mat.Dense
-	_, err = weights.UnmarshalBinaryFrom(fh)
+
+	_, err := weights.UnmarshalBinaryFrom(fh)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf(`while unmarshaling snapshot %s`, path))
+		return err
 	}
+
 	l.weights = &weights
 
 	return nil
@@ -179,25 +180,63 @@ func (n *Network) Clone() *Network {
 	return &clone
 }
 
-// Snapshot stores a snapshot of all layers to files prefixed with `prefix`.
-// The files are suffixed with the layer number and the string `.layer`.
-func (n *Network) Snapshot(prefix string) error {
+// Snapshot writes a snapshot of n to w.
+func (n *Network) Snapshot(w io.Writer) error {
+	tw := tar.NewWriter(w)
+
 	for idx, layer := range n.layers {
-		if err := layer.snapshot(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
-			return err
+		sz, err := layer.encodedSize()
+		if err != nil {
+			return fmt.Errorf("getting layer size for %d: %w", idx, err)
+		}
+
+		err = tw.WriteHeader(&tar.Header{
+			Name: "layer-" + strconv.Itoa(idx),
+			Size: int64(sz),
+		})
+		if err != nil {
+			return fmt.Errorf("creating entry for layer %d: %w", idx, err)
+		}
+
+		err = layer.snapshot(tw)
+		if err != nil {
+			return fmt.Errorf("persisting layer %d: %w", idx, err)
+		}
+
+		err = tw.Flush()
+		if err != nil {
+			return fmt.Errorf("flushing layer %d: %w", idx, err)
 		}
 	}
 
-	return nil
+	return tw.Close()
 }
 
 // Restore restores a network that was previously saved with `Snapshot`.
 //
-// The result is undefined if the network architecture differs.
-func (n *Network) Restore(prefix string) error {
+// The result is undefined if the network architecture differs. You will likely get panics or weird errors
+// when using or training a network that was restored from different parameters.
+//
+// TODO: Persist network architecture and validate on restore.
+func (n *Network) Restore(r io.Reader) error {
+	tr := tar.NewReader(r)
+
 	for idx, layer := range n.layers {
-		if err := layer.restore(fmt.Sprintf(`%s-%d.layer`, prefix, idx)); err != nil {
-			return err
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("skipping archive header: %w", err)
+		}
+
+		if hdr.Name != "layer-"+strconv.Itoa(idx) {
+			return fmt.Errorf("unexpected archive entry %q, expected one for layer %d", hdr.Name, idx)
+		}
+
+		err = layer.restore(tr)
+		if err != nil {
+			return fmt.Errorf("restoring layer %d: %w", idx, err)
 		}
 	}
 
