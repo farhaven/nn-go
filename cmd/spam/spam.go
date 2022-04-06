@@ -92,7 +92,8 @@ func train(r io.Reader, net *network.Network, t trainAs) error {
 			input[i] = float64(r) / 255.0
 		}
 
-		// Old score
+		// Feedback score of previous n-gram to provide the network with a bit of bias in the form
+		// of memory.
 		input[ngramSize] = score[0]
 		input[ngramSize+1] = score[1]
 
