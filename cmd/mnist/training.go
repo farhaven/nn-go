@@ -41,7 +41,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 	if err == nil {
 		defer fh.Close()
 
-		err := net.Restore(fh)
+		_, err := net.ReadFrom(fh)
 		if err != nil {
 			logger.Println("can't load network from snapshot, starting fresh")
 		}
@@ -106,7 +106,7 @@ func trainNetwork(net *network.Network, samples []mnistSample) error {
 			}
 			defer fh.Close()
 
-			err = net.Snapshot(fh)
+			_, err = net.WriteTo(fh)
 			if err != nil {
 				return err
 			}

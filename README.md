@@ -90,10 +90,10 @@ type Network struct {
 
 Network is structure that represents an unbiased neural network
 
-#### func  NewNetwork
+#### func  New
 
 ```go
-func NewNetwork(layerConfigs []LayerConf) (*Network, error)
+func New(layerConfigs []LayerConf) (*Network, error)
 ```
 NewNetwork creates a new neural network with the desired layer configurations.
 The activation is ignored for the first layer and has to be set to nil.
@@ -139,19 +139,22 @@ func (n *Network) Forward(inputs []float64) []float64
 Forward performs a forward pass through the network for the given inputs. The
 returned value is the output of the uppermost layer of neurons.
 
-#### func (*Network) Restore
+#### func (*Network) ReadFrom
 
 ```go
-func (n *Network) Restore(prefix string) error
+func (n *Network) ReadFrom(r io.Reader) (int64, error)
 ```
-Restore restores a network that was previously saved with `Snapshot`.
+ReadFrom restores a network that was previously saved with `Snapshot`.
 
-The result is undefined if the network architecture differs.
+The result is undefined if the network architecture differs. You will likely get
+panics or weird errors when using or training a network that was restored from
+different parameters.
 
-#### func (*Network) Snapshot
+TODO: Persist network architecture and validate on restore.
+
+#### func (*Network) WriteTo
 
 ```go
-func (n *Network) Snapshot(prefix string) error
+func (n *Network) WriteTo(w io.Writer) (int64, error)
 ```
-Snapshot stores a snapshot of all layers to files prefixed with `prefix`. The
-files are suffixed with the layer number and the string `.layer`.
+WriteTo writes a snapshot of n to w.

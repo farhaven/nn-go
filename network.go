@@ -50,14 +50,12 @@ func (l *layer) clone() *layer {
 	return &clone
 }
 
-func (l *layer) snapshot(fh io.Writer) error {
-	_, err := l.weights.MarshalBinaryTo(fh)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (l *layer) WriteTo(w io.Writer) (int64, error) {
+	sz, err := l.weights.MarshalBinaryTo(w)
+	return int64(sz), err
 }
+
+var _ io.WriterTo = &layer{}
 
 func (l *layer) encodedSize() (int, error) {
 	buf, err := l.weights.MarshalBinary()
@@ -68,18 +66,20 @@ func (l *layer) encodedSize() (int, error) {
 	return len(buf), nil
 }
 
-func (l *layer) restore(fh io.Reader) error {
+func (l *layer) ReadFrom(r io.Reader) (int64, error) {
 	var weights mat.Dense
 
-	_, err := weights.UnmarshalBinaryFrom(fh)
+	sz, err := weights.UnmarshalBinaryFrom(r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	l.weights = &weights
 
-	return nil
+	return int64(sz), nil
 }
+
+var _ io.ReaderFrom = &layer{}
 
 func (l *layer) computeGradient(error *mat.VecDense) *mat.VecDense {
 	for idx := 0; idx < error.Len(); idx++ {
@@ -180,14 +180,26 @@ func (n *Network) Clone() *Network {
 	return &clone
 }
 
-// Snapshot writes a snapshot of n to w.
-func (n *Network) Snapshot(w io.Writer) error {
-	tw := tar.NewWriter(w)
+type writeCounter struct {
+	w io.Writer
+	c int64
+}
+
+func (w *writeCounter) Write(data []byte) (int, error) {
+	sz, err := w.w.Write(data)
+	w.c += int64(sz)
+	return sz, err
+}
+
+// WriteTo writes a snapshot of n to w.
+func (n *Network) WriteTo(w io.Writer) (int64, error) {
+	wc := writeCounter{w: w}
+	tw := tar.NewWriter(&wc)
 
 	for idx, layer := range n.layers {
 		sz, err := layer.encodedSize()
 		if err != nil {
-			return fmt.Errorf("getting layer size for %d: %w", idx, err)
+			return wc.c, fmt.Errorf("getting layer size for %d: %w", idx, err)
 		}
 
 		err = tw.WriteHeader(&tar.Header{
@@ -195,31 +207,50 @@ func (n *Network) Snapshot(w io.Writer) error {
 			Size: int64(sz),
 		})
 		if err != nil {
-			return fmt.Errorf("creating entry for layer %d: %w", idx, err)
+			return wc.c, fmt.Errorf("creating entry for layer %d: %w", idx, err)
 		}
 
-		err = layer.snapshot(tw)
+		_, err = layer.WriteTo(tw)
 		if err != nil {
-			return fmt.Errorf("persisting layer %d: %w", idx, err)
+			return wc.c, fmt.Errorf("persisting layer %d: %w", idx, err)
 		}
 
 		err = tw.Flush()
 		if err != nil {
-			return fmt.Errorf("flushing layer %d: %w", idx, err)
+			return wc.c, fmt.Errorf("flushing layer %d: %w", idx, err)
 		}
 	}
 
-	return tw.Close()
+	err := tw.Close()
+	if err != nil {
+		return wc.c, err
+	}
+
+	return wc.c, nil
 }
 
-// Restore restores a network that was previously saved with `Snapshot`.
+var _ io.WriterTo = &Network{}
+
+type readCounter struct {
+	r io.Reader
+	c int64
+}
+
+func (r *readCounter) Read(data []byte) (int, error) {
+	sz, err := r.r.Read(data)
+	r.c += int64(sz)
+	return sz, err
+}
+
+// ReadFrom restores a network that was previously saved with `Snapshot`.
 //
 // The result is undefined if the network architecture differs. You will likely get panics or weird errors
 // when using or training a network that was restored from different parameters.
 //
 // TODO: Persist network architecture and validate on restore.
-func (n *Network) Restore(r io.Reader) error {
-	tr := tar.NewReader(r)
+func (n *Network) ReadFrom(r io.Reader) (int64, error) {
+	rc := readCounter{r: r}
+	tr := tar.NewReader(&rc)
 
 	for idx, layer := range n.layers {
 		hdr, err := tr.Next()
@@ -227,21 +258,23 @@ func (n *Network) Restore(r io.Reader) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("skipping archive header: %w", err)
+			return rc.c, fmt.Errorf("skipping archive header: %w", err)
 		}
 
 		if hdr.Name != "layer-"+strconv.Itoa(idx) {
-			return fmt.Errorf("unexpected archive entry %q, expected one for layer %d", hdr.Name, idx)
+			return rc.c, fmt.Errorf("unexpected archive entry %q, expected one for layer %d", hdr.Name, idx)
 		}
 
-		err = layer.restore(tr)
+		_, err = layer.ReadFrom(tr)
 		if err != nil {
-			return fmt.Errorf("restoring layer %d: %w", idx, err)
+			return rc.c, fmt.Errorf("restoring layer %d: %w", idx, err)
 		}
 	}
 
-	return nil
+	return rc.c, nil
 }
+
+var _ io.ReaderFrom = &Network{}
 
 // Forward performs a forward pass through the network for the given inputs.
 // The returned value is the output of the uppermost layer of neurons.

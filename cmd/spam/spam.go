@@ -158,7 +158,7 @@ func main() {
 
 	fh, err := os.Open(*name)
 	if err == nil {
-		err = net.Restore(fh)
+		_, err = net.ReadFrom(fh)
 		if err != nil {
 			log.Println("restoring network failed:", err)
 
@@ -200,7 +200,7 @@ func main() {
 	}
 	defer fh.Close()
 
-	err = net.Snapshot(fh)
+	_, err = net.WriteTo(fh)
 	if err != nil {
 		log.Fatalln("network persistence failed:", err)
 	}

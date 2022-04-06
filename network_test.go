@@ -135,12 +135,12 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err = net.Snapshot(&buf)
+	_, err = net.WriteTo(&buf)
 	if err != nil {
 		t.Fatal("unexpected error during snapshot:", err)
 	}
 
-	err = net.Restore(&buf)
+	_, err = net.ReadFrom(&buf)
 	if err != nil {
 		t.Fatal("unexpected error during restore:", err)
 	}
@@ -163,6 +163,7 @@ func TestNetworkSnapshotAndRestoreNew(t *testing.T) {
 	if err != nil {
 		t.Error(`can't create first network`, err)
 	}
+
 	net2, err := New(config)
 	if err != nil {
 		t.Error(`can't create second network`, err)
@@ -170,12 +171,13 @@ func TestNetworkSnapshotAndRestoreNew(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err = net1.Snapshot(&buf)
+	_, err = net1.WriteTo(&buf)
 	if err != nil {
 		t.Fatalf("unexpected error during snapshot: %s", err)
 	}
 
-	if err := net2.Restore(&buf); err != nil {
+	_, err = net2.ReadFrom(&buf)
+	if err != nil {
 		t.Fatalf(`can't restore network: %s`, err)
 	}
 
@@ -199,14 +201,14 @@ func TestLayerSnapshotAndRestoreNewLayer(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := layer1.snapshot(&buf)
+	_, err := layer1.WriteTo(&buf)
 	if err != nil {
 		t.Fatal("can't snapshot layer:", err)
 	}
 
 	layer2 := newLayer(1, 1, activation.Sigmoid{})
 
-	err = layer2.restore(&buf)
+	_, err = layer2.ReadFrom(&buf)
 	if err != nil {
 		t.Fatal("can't restore layer:", err)
 	}
