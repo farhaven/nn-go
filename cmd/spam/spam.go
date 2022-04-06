@@ -157,7 +157,9 @@ func main() {
 	}
 
 	fh, err := os.Open(*name)
-	if err == nil {
+	if err != nil {
+		log.Println("loading network failed:", err)
+	} else {
 		_, err = net.ReadFrom(fh)
 		if err != nil {
 			log.Println("restoring network failed:", err)
@@ -170,10 +172,6 @@ func main() {
 		}
 
 		fh.Close()
-	}
-
-	if err != nil {
-		log.Fatal("loading network failed:", err)
 	}
 
 	var r io.Reader
