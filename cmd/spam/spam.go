@@ -58,7 +58,7 @@ func (n *NGram) Scan() ([]byte, error) {
 }
 
 const (
-	ngramSize  = 16
+	ngramSize  = 3
 	memorySize = 2
 )
 
@@ -89,7 +89,7 @@ func train(r io.Reader, net *network.Network, t trainAs) error {
 		}
 
 		for i, r := range rawInput {
-			input[i] = float64(r)
+			input[i] = float64(r) / 255.0
 		}
 
 		// Old score
@@ -99,7 +99,7 @@ func train(r io.Reader, net *network.Network, t trainAs) error {
 		p := net.Forward(input[:])
 
 		if t != TrainNone {
-			net.Backprop(input[:], network.Error(p, target), 0.01)
+			net.Backprop(input[:], network.Error(p, target), 0.001)
 		}
 
 		score[0] = p[0]
