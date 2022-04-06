@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"math"
-	"math/big"
+	"math/rand"
 	"os"
+	"time"
 
 	network "github.com/farhaven/nn-go"
 	"github.com/farhaven/nn-go/activation"
@@ -20,18 +20,6 @@ const (
 	TrainSpam
 	TrainNone
 )
-
-func sigmoid(x float64) float64 {
-	if x < 0 || x > 1 {
-		panic(fmt.Sprintf("x out of [0, 1]: %f", x))
-	}
-
-	midpoint := 0.5
-	max := 1.0
-	k := 5.0
-
-	return max / (1.0 + math.Exp(-k*(x-midpoint)))
-}
 
 type NGram struct {
 	r io.Reader
@@ -69,20 +57,30 @@ func (n *NGram) Scan() ([]byte, error) {
 	return res, nil
 }
 
+const (
+	ngramSize  = 16
+	memorySize = 2
+)
+
 func train(r io.Reader, net *network.Network, t trainAs) error {
 	n := NGram{
 		r: r,
-		n: 16,
+		n: ngramSize,
 	}
 
-	var input [16]float64
+	var (
+		input  [ngramSize + memorySize]float64
+		target []float64
+	)
 
-	target := []float64{0}
-	if t == TrainSpam {
-		target[0] = 1
+	score := make([]float64, memorySize)
+
+	switch t {
+	case TrainSpam:
+		target = []float64{1, 0}
+	case TrainHam:
+		target = []float64{0, 1}
 	}
-
-	score := big.NewFloat(1)
 
 	for {
 		rawInput, err := n.Scan()
@@ -94,20 +92,30 @@ func train(r io.Reader, net *network.Network, t trainAs) error {
 			input[i] = float64(r)
 		}
 
+		// Old score
+		input[ngramSize] = score[0]
+		input[ngramSize+1] = score[1]
+
 		p := net.Forward(input[:])
 
 		if t != TrainNone {
-			net.Backprop(input[:], network.Error(p, target), 0.001)
+			net.Backprop(input[:], network.Error(p, target), 0.01)
 		}
 
-		score.Mul(score, big.NewFloat(sigmoid(p[0])+0.5))
+		score[0] = p[0]
+		score[1] = p[1]
 	}
 
 	log.Println("final score:", score)
-	if score.Cmp(big.NewFloat(1)) <= 0 {
-		log.Println("looks like ham")
+
+	if math.Abs(score[0]-score[1]) > 0.5 {
+		if score[0] > score[1] {
+			log.Println("looks like spam")
+		} else {
+			log.Println("looks like ham")
+		}
 	} else {
-		log.Println("looks like spam")
+		log.Println("dunno, bro")
 	}
 
 	return nil
@@ -119,6 +127,8 @@ func main() {
 	name := flag.String("name", "/tmp/brain", "name for persisting the network")
 
 	flag.Parse()
+
+	rand.Seed(time.Now().UnixNano())
 
 	var t trainAs
 
@@ -136,10 +146,9 @@ func main() {
 	log.Println("here we go", *input)
 
 	config := []network.LayerConf{
-		{Inputs: 16},
-		{Inputs: 40, Activation: activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
-		{Inputs: 40, Activation: activation.LeakyReLU{Leak: 0.001, Cap: 1e6}},
-		{Inputs: 1, Activation: activation.Sigmoid{}},
+		{Inputs: ngramSize + memorySize},
+		{Inputs: 40, Activation: activation.Tanh{}},
+		{Inputs: 2, Activation: activation.Tanh{}},
 	}
 
 	net, err := network.New(config)

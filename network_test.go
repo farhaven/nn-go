@@ -13,8 +13,10 @@ func TestLayerComputeGradient(t *testing.T) {
 	error := mat.NewVecDense(2, []float64{0, 0.3})
 
 	layer := newLayer(3, 2, activation.Sigmoid{})
-	layer.forward(input)
+	output := layer.forward(input)
 	layer.computeGradient(error)
+
+	t.Log("output", output)
 }
 
 func TestNetworkBackprop(t *testing.T) {
@@ -23,7 +25,7 @@ func TestNetworkBackprop(t *testing.T) {
 		{Inputs: 3, Activation: activation.Sigmoid{}},
 		{Inputs: 1, Activation: activation.Sigmoid{}},
 	}
-	net, err := NewNetwork(config)
+	net, err := New(config)
 	if err != nil {
 		t.Error(`can't create network`, err)
 	}
@@ -52,6 +54,8 @@ func TestNetworkBackprop(t *testing.T) {
 	if se2 >= se1 {
 		t.Errorf(`backprop failed to improve error: error1: %f, error2: %f`, se1, se2)
 	}
+
+	t.Log("squared errors:", se1, se2)
 }
 
 func TestNetworkLearnXOR(t *testing.T) {
@@ -62,7 +66,7 @@ func TestNetworkLearnXOR(t *testing.T) {
 		{Inputs: 3, Activation: act},
 		{Inputs: 1, Activation: act},
 	}
-	net, err := NewNetwork(config)
+	net, err := New(config)
 	if err != nil {
 		t.Error(`can't create network`, err)
 	}
@@ -122,7 +126,7 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 		{Inputs: 3, Activation: activation.Sigmoid{}},
 		{Inputs: 1, Activation: activation.Sigmoid{}},
 	}
-	net, err := NewNetwork(config)
+	net, err := New(config)
 	if err != nil {
 		t.Error(`can't create network`, err)
 	}
@@ -145,18 +149,18 @@ func TestNetworkSnapshotAndRestoreSelf(t *testing.T) {
 	}
 }
 
-func TestNetworkSnapshotAndRestoreNewNetwork(t *testing.T) {
+func TestNetworkSnapshotAndRestoreNew(t *testing.T) {
 	config := []LayerConf{
 		{Inputs: 2},
 		{Inputs: 3, Activation: activation.Sigmoid{}},
 		{Inputs: 1, Activation: activation.Sigmoid{}},
 	}
 
-	net1, err := NewNetwork(config)
+	net1, err := New(config)
 	if err != nil {
 		t.Error(`can't create first network`, err)
 	}
-	net2, err := NewNetwork(config)
+	net2, err := New(config)
 	if err != nil {
 		t.Error(`can't create second network`, err)
 	}
