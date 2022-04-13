@@ -7,8 +7,8 @@ import (
 	"math"
 	"math/rand"
 	"strconv"
+	"errors"
 
-	"github.com/pkg/errors"
 	"gonum.org/v1/gonum/mat"
 
 	"github.com/farhaven/nn-go/activation"
